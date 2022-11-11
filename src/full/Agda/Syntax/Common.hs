@@ -416,11 +416,13 @@ data Modality = Modality
       -- ^ Cohesion/what was in Agda-flat.
       --   see "Brouwer's fixed-point theorem in real-cohesive homotopy type theory" (arXiv:1509.07584)
       --   Currently only the comonad is implemented.
+  , modPolarity :: ModalPolarity
+      -- ^ Polarity annotations (strictly positive, ...)
   } deriving (Eq, Ord, Show, Generic)
 
 -- | Dominance ordering.
 instance PartialOrd Modality where
-  comparable (Modality r q c) (Modality r' q' c') = comparable (r, (q, c)) (r', (q', c'))
+  comparable (Modality r q c p) (Modality r' q' c' p') = comparable (r, (q, (c, p))) (r', (q', (c', p')))
 
 -- | Pointwise composition.
 instance Semigroup (UnderComposition Modality) where
@@ -461,10 +463,11 @@ usableModality a = usableRelevance m && usableQuantity m
 
 -- | Multiplicative monoid (standard monoid).
 composeModality :: Modality -> Modality -> Modality
-composeModality (Modality r q c) (Modality r' q' c') =
+composeModality (Modality r q c p) (Modality r' q' c' p') =
     Modality (r `composeRelevance` r')
              (q `composeQuantity` q')
              (c `composeCohesion` c')
+             (p `composePolarity` p')
 
 -- | Compose with modality flag from the left.
 --   This function is e.g. used to update the modality information
@@ -478,10 +481,11 @@ applyModality m = mapModality (m `composeModality`)
 --   iff
 --   @(r \`inverseComposeModality\` x) \`moreUsableModality\` y@ (Galois connection).
 inverseComposeModality :: Modality -> Modality -> Modality
-inverseComposeModality (Modality r q c) (Modality r' q' c') =
+inverseComposeModality (Modality r q c p) (Modality r' q' c' p') =
   Modality (r `inverseComposeRelevance` r')
            (q `inverseComposeQuantity`  q')
            (c `inverseComposeCohesion`  c')
+           (p `inverseComposePolarity`  p')
 
 -- | Left division by a 'Modality'.
 --   Used e.g. to modify context when going into a @m@ argument.
@@ -495,39 +499,43 @@ inverseApplyModalityButNotQuantity m =
 
 -- | 'Modality' forms a pointwise additive monoid.
 addModality :: Modality -> Modality -> Modality
-addModality (Modality r q c) (Modality r' q' c') = Modality (addRelevance r r') (addQuantity q q') (addCohesion c c')
+addModality (Modality r q c p) (Modality r' q' c' p') =
+  Modality (addRelevance r r')
+           (addQuantity  q q')
+           (addCohesion  c c')
+           (addPolarity  p p')
 
 -- | Identity under addition
 zeroModality :: Modality
-zeroModality = Modality zeroRelevance zeroQuantity zeroCohesion
+zeroModality = Modality zeroRelevance zeroQuantity zeroCohesion zeroPolarity
 
 -- | Identity under composition
 unitModality :: Modality
-unitModality = Modality unitRelevance unitQuantity unitCohesion
+unitModality = Modality unitRelevance unitQuantity unitCohesion unitPolarity
 
 -- | Absorptive element under addition.
 topModality :: Modality
-topModality = Modality topRelevance topQuantity topCohesion
+topModality = Modality topRelevance topQuantity topCohesion topPolarity
 
 -- | The default Modality
 --   Beware that this is neither the additive unit nor the unit under
 --   composition, because the default quantity is ω.
 defaultModality :: Modality
-defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion
+defaultModality = Modality defaultRelevance defaultQuantity defaultCohesion defaultPolarity
 
 -- | Equality ignoring origin.
 
 sameModality :: (LensModality a, LensModality b) => a -> b -> Bool
 sameModality x y = case (getModality x , getModality y) of
-  (Modality r q c , Modality r' q' c') -> sameRelevance r r' && sameQuantity q q' && sameCohesion c c'
+  (Modality r q c p , Modality r' q' c' p') -> sameRelevance r r' && sameQuantity q q' && sameCohesion c c' && samePolarity p p'
 
 -- boilerplate instances
 
 instance HasRange Modality where
-  getRange (Modality r q c) = getRange (r, q, c)
+  getRange (Modality r q c p) = getRange (r, q, c, p)
 
 instance KillRange Modality where
-  killRange (Modality r q c) = killRange3 Modality r q c
+  killRange (Modality r q c p) = killRange3 Modality r q c p
 
 instance NFData Modality where
 
@@ -541,6 +549,9 @@ lModQuantity f m = f (modQuantity m) <&> \ q -> m { modQuantity = q }
 
 lModCohesion :: Lens' Cohesion Modality
 lModCohesion f m = f (modCohesion m) <&> \ q -> m { modCohesion = q }
+
+lModPolarity :: Lens' ModalPolarity Modality
+lModPolarity f m = f (modPolarity m) <&> \ p -> m { modPolarity = p }
 
 class LensModality a where
 
@@ -577,6 +588,11 @@ instance LensCohesion Modality where
   setCohesion h m = m { modCohesion = h }
   mapCohesion f m = m { modCohesion = f (modCohesion m) }
 
+instance LensModalPolarity Modality where
+  getModalPolarity = modPolarity
+  setModalPolarity h m = m { modPolarity = h }
+  mapModalPolarity f m = m { modPolarity = f (modPolarity m) }
+
 -- default accessors for Relevance
 
 getRelevanceMod :: LensModality a => LensGet Relevance a
@@ -609,6 +625,17 @@ setCohesionMod = mapModality . setCohesion
 
 mapCohesionMod :: LensModality a => LensMap Cohesion a
 mapCohesionMod = mapModality . mapCohesion
+
+-- default accessors for Polarity
+
+getPolarityMod :: LensModality a => LensGet ModalPolarity a
+getPolarityMod = getModalPolarity . getModality
+
+setPolarityMod :: LensModality a => LensSet ModalPolarity a
+setPolarityMod = mapModality . setModalPolarity
+
+mapPolarityMod :: LensModality a => LensMap ModalPolarity a
+mapPolarityMod = mapModality . mapModalPolarity
 
 ---------------------------------------------------------------------------
 -- * Quantities
@@ -1502,6 +1529,199 @@ topCohesion = Flat
 defaultCohesion :: Cohesion
 defaultCohesion = unitCohesion
 
+
+---------------------------------------------------------------------------
+-- * Polarity
+---------------------------------------------------------------------------
+
+-- | Polarity modalities
+data ModalPolarity
+  = UnusedPolarity
+  | StrictlyPositive
+  | Positive
+  | Negative
+  | MixedPolarity
+    deriving (Show, Ord, Enum, Eq, Bounded, Generic)
+
+instance HasRange ModalPolarity where
+  getRange _ = noRange
+
+instance SetRange ModalPolarity where
+  setRange _ = id
+
+instance KillRange ModalPolarity where
+  killRange rel = rel -- no range to kill
+
+instance NFData ModalPolarity where
+  rnf UnusedPolarity   = ()
+  rnf StrictlyPositive = ()
+  rnf Positive         = ()
+  rnf Negative         = ()
+  rnf MixedPolarity    = ()
+
+-- | A lens to access the 'ModalPolarity' attribute in data structures.
+--   Minimal implementation: @getModalPolarity@ and @mapModalPolarity@ or @LensModality@.
+class LensModalPolarity a where
+
+  getModalPolarity :: a -> ModalPolarity
+
+  setModalPolarity :: ModalPolarity -> a -> a
+  setModalPolarity h = mapModalPolarity (const h)
+
+  mapModalPolarity :: (ModalPolarity -> ModalPolarity) -> a -> a
+
+  default getModalPolarity :: LensModality a => a -> ModalPolarity
+  getModalPolarity = modPolarity . getModality
+
+  default mapModalPolarity :: LensModality a => (ModalPolarity -> ModalPolarity) -> a -> a
+  mapModalPolarity f = mapModality $ \ ai -> ai { modPolarity = f $ modPolarity ai }
+
+instance LensModalPolarity ModalPolarity where
+  getModalPolarity = id
+  setModalPolarity = const
+  mapModalPolarity = id
+
+-- | @morePolarity x y@ is True whenever a variable of polarity x can be
+--   used anywhere where a variable of polarity y is expected.
+--   Note that @morePolarity x y@ actually means x <= y.
+morePolarity :: ModalPolarity -> ModalPolarity -> Bool
+morePolarity x y = case comparable x y of
+  POLT -> True
+  POLE -> True
+  POEQ -> True
+  _    -> False
+
+-- | Equality for polarities.
+samePolarity :: ModalPolarity -> ModalPolarity -> Bool
+samePolarity = (==)
+
+-- | The derived Ord instance for ModalPolarity is just used for
+--   serialisation and has no intentional meaning. The actual order on
+--   modalities is a partial order.
+instance PartialOrd ModalPolarity where
+  comparable x y | x == y = POEQ
+  comparable _ UnusedPolarity = POLT
+  comparable UnusedPolarity _ = POGT
+  comparable _ MixedPolarity = POGT
+  comparable MixedPolarity _ = POLT
+  comparable _ Negative = POAny
+  comparable Negative _ = POAny
+  comparable Positive StrictlyPositive = POLT
+  comparable StrictlyPositive Positive = POGT
+  comparable _ _ = __IMPOSSIBLE__
+
+-- | @usablePolarity pol == False@ iff we cannot use a variable of @pol@.
+usablePolarity :: LensModalPolarity a => a -> Bool
+usablePolarity a = getModalPolarity a `morePolarity` StrictlyPositive
+
+-- | 'ModalPolarity' composition.
+--   'UnusedPolarity' is dominant, 'StrictlyPositive' is neutral.
+composePolarity :: ModalPolarity -> ModalPolarity -> ModalPolarity
+composePolarity p p' =
+  case (p, p') of
+    (UnusedPolarity, _)  -> UnusedPolarity
+    (_, UnusedPolarity)  -> UnusedPolarity
+    (MixedPolarity, _)   -> MixedPolarity
+    (_, MixedPolarity)   -> MixedPolarity
+    (Negative, Negative) -> Positive
+    (Negative, _) -> Negative
+    (_, Negative) -> Negative
+    (StrictlyPositive, StrictlyPositive) -> StrictlyPositive
+    (_, _) -> Positive
+
+-- | Compose with polarity flag from the left.
+--   This function is e.g. used to update the polarity information
+--   on pattern variables @a@ after a match against something of polarity @pol@.
+applyPolarity :: LensModalPolarity a => ModalPolarity -> a -> a
+applyPolarity pol = mapModalPolarity (pol `composePolarity`)
+
+-- | @inverseComposePolarity r x@ returns the least @y@
+--   such that forall @x@, @y@ we have
+--   @x \`morePolarity\` (r \`composePolarity\` y)@
+--   iff
+--   @(r \`inverseComposePolarity\` x) \`morePolarity\` y@ (Galois connection).
+inverseComposePolarity :: ModalPolarity -> ModalPolarity -> ModalPolarity
+inverseComposePolarity p x =
+  case (p, x) of
+    (MixedPolarity, MixedPolarity) -> MixedPolarity
+    (MixedPolarity, _) -> UnusedPolarity
+    (StrictlyPositive , x) -> x
+    (UnusedPolarity, _) -> MixedPolarity
+    (Positive, StrictlyPositive) -> UnusedPolarity
+    (Positive, x) -> x
+    (Negative, Positive) -> Negative
+    (Negative, Negative) -> Positive
+    (Negative, MixedPolarity) -> MixedPolarity
+    (Negative, _) -> UnusedPolarity
+
+-- | Left division by a 'ModalPolarity'.
+--   Used e.g. to modify context when going into a @pol@ argument.
+inverseApplyPolarity :: LensModalPolarity a => ModalPolarity -> a -> a
+inverseApplyPolarity pol = mapModalPolarity (pol `inverseComposePolarity`)
+
+-- | 'ModalPolarity' forms a semigroup under composition.
+instance Semigroup (UnderComposition ModalPolarity) where
+  (<>) = liftA2 composePolarity
+
+-- | 'Continous' is the multiplicative unit.
+instance Monoid (UnderComposition ModalPolarity) where
+  mempty  = pure unitPolarity
+  mappend = (<>)
+
+instance POSemigroup (UnderComposition ModalPolarity) where
+instance POMonoid (UnderComposition ModalPolarity) where
+
+instance LeftClosedPOMonoid (UnderComposition ModalPolarity) where
+  inverseCompose = liftA2 inverseComposePolarity
+
+-- | 'ModalPolarity' forms a semigroup under addition.
+instance Semigroup (UnderAddition ModalPolarity) where
+  (<>) = liftA2 addPolarity
+
+-- | '' is the additive unit.
+instance Monoid (UnderAddition ModalPolarity) where
+  mempty  = pure zeroPolarity
+  mappend = (<>)
+
+instance POSemigroup (UnderAddition ModalPolarity) where
+instance POMonoid (UnderAddition ModalPolarity) where
+
+-- | Combine inferred 'ModalPolarity'.
+--   The unit is 'UnusedPolarity'.
+addPolarity :: ModalPolarity -> ModalPolarity -> ModalPolarity
+addPolarity p p' = case (p, p') of
+  (MixedPolarity, _) -> MixedPolarity
+  (_, MixedPolarity) -> MixedPolarity
+  (UnusedPolarity, x) -> x
+  (x, UnusedPolarity) -> x
+  (Negative, Negative) -> Negative
+  (Negative, _) -> MixedPolarity
+  (_, Negative) -> MixedPolarity
+  (Positive, _) -> Positive
+  (_, Positive) -> Positive
+  (StrictlyPositive, StrictlyPositive) -> StrictlyPositive
+
+-- | 'ModalPolarity' forms a monoid under addition, and even a semiring.
+zeroPolarity :: ModalPolarity
+zeroPolarity = UnusedPolarity
+
+-- | Identity under composition
+unitPolarity :: ModalPolarity
+unitPolarity = StrictlyPositive
+
+-- | Alias for Negative polarity
+negativePolarity :: ModalPolarity
+negativePolarity = Negative
+
+-- | Absorptive element under addition.
+topPolarity :: ModalPolarity
+topPolarity = MixedPolarity
+
+-- | Default used when not caring about polarity
+defaultPolarity :: ModalPolarity
+defaultPolarity = MixedPolarity
+
+
 ---------------------------------------------------------------------------
 -- * Origin of arguments (user-written, inserted or reflected)
 ---------------------------------------------------------------------------
@@ -1723,6 +1943,11 @@ instance LensCohesion ArgInfo where
   setCohesion = setCohesionMod
   mapCohesion = mapCohesionMod
 
+instance LensModalPolarity ArgInfo where
+  getModalPolarity = getPolarityMod
+  setModalPolarity = setPolarityMod
+  mapModalPolarity = mapPolarityMod
+
 defaultArgInfo :: ArgInfo
 defaultArgInfo =  ArgInfo
   { argInfoHiding        = NotHidden
@@ -1916,6 +2141,11 @@ instance LensCohesion (Arg e) where
   getCohesion = getCohesionMod
   setCohesion = setCohesionMod
   mapCohesion = mapCohesionMod
+
+instance LensModalPolarity (Arg e) where
+  getModalPolarity = getPolarityMod
+  setModalPolarity = setPolarityMod
+  mapModalPolarity = mapPolarityMod
 
 defaultArg :: a -> Arg a
 defaultArg = Arg defaultArgInfo
