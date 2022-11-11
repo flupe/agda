@@ -28,6 +28,7 @@ data Attribute
   | QuantityAttribute  Quantity
   | TacticAttribute Expr
   | CohesionAttribute Cohesion
+  | PolarityAttribute ModalPolarity
   | LockAttribute      Lock
   deriving (Show)
 
@@ -36,6 +37,7 @@ instance HasRange Attribute where
     RelevanceAttribute r -> getRange r
     QuantityAttribute q  -> getRange q
     CohesionAttribute c  -> getRange c
+    PolarityAttribute p  -> getRange p
     TacticAttribute e    -> getRange e
     LockAttribute l      -> NoRange
 
@@ -44,6 +46,7 @@ instance SetRange Attribute where
     RelevanceAttribute a -> RelevanceAttribute $ setRange r a
     QuantityAttribute q  -> QuantityAttribute  $ setRange r q
     CohesionAttribute c  -> CohesionAttribute  $ setRange r c
+    PolarityAttribute p  -> PolarityAttribute  $ setRange r p
     TacticAttribute e    -> TacticAttribute e  -- -- $ setRange r e -- SetRange Expr not yet implemented
     LockAttribute l      -> LockAttribute l
 
@@ -52,12 +55,13 @@ instance KillRange Attribute where
     RelevanceAttribute a -> RelevanceAttribute $ killRange a
     QuantityAttribute q  -> QuantityAttribute  $ killRange q
     CohesionAttribute c  -> CohesionAttribute  $ killRange c
+    PolarityAttribute p  -> PolarityAttribute  $ killRange p
     TacticAttribute e    -> TacticAttribute    $ killRange e
     LockAttribute l      -> LockAttribute l
 
 -- | (Conjunctive constraint.)
 
-type LensAttribute a = (LensRelevance a, LensQuantity a, LensCohesion a, LensLock a)
+type LensAttribute a = (LensRelevance a, LensQuantity a, LensCohesion a, LensModalPolarity a, LensLock a)
 
 -- | Modifiers for 'Relevance'.
 
@@ -105,6 +109,16 @@ cohesionAttributeTable =
 
 type CohesionAttributes = [(String, Range)]
 
+-- | Modifiers for 'Polarity'.
+
+polarityAttributeTable :: [(String, ModalPolarity)]
+polarityAttributeTable =
+  [ ("unused" , UnusedPolarity)
+  , ("++" , StrictlyPositive)
+  , ("+" , Positive)
+  , ("-" , Negative)
+  , ("mixed" , MixedPolarity)]
+
 -- | Modifiers for 'Quantity'.
 
 lockAttributeTable :: [(String, Lock)]
@@ -121,6 +135,7 @@ attributesMap = Map.fromListWith __IMPOSSIBLE__ $ concat
   [ map (second RelevanceAttribute) relevanceAttributeTable
   , map (second QuantityAttribute)  quantityAttributeTable
   , map (second CohesionAttribute)  cohesionAttributeTable
+  , map (second PolarityAttribute)  polarityAttributeTable
   , map (second LockAttribute)      lockAttributeTable
   ]
 
@@ -142,6 +157,7 @@ setAttribute = \case
   RelevanceAttribute r -> setRelevance r
   QuantityAttribute  q -> setQuantity  q
   CohesionAttribute  c -> setCohesion  c
+  PolarityAttribute  p -> setModalPolarity p
   LockAttribute      l -> setLock      l
   TacticAttribute t    -> id
 
@@ -178,6 +194,13 @@ setPristineCohesion c a
   | getCohesion a == defaultCohesion = Just $ setCohesion c a
   | otherwise = Nothing
 
+-- | Setting 'ModalPolarity' if unset.
+
+setPristinePolarity :: (LensModalPolarity a) => ModalPolarity -> a -> Maybe a
+setPristinePolarity c a
+  | getModalPolarity a == defaultPolarity = Just $ setModalPolarity c a
+  | otherwise = Nothing
+
 -- | Setting 'Lock' if unset.
 
 setPristineLock :: (LensLock a) => Lock -> a -> Maybe a
@@ -192,6 +215,7 @@ setPristineAttribute = \case
   RelevanceAttribute r -> setPristineRelevance r
   QuantityAttribute  q -> setPristineQuantity  q
   CohesionAttribute  c -> setPristineCohesion  c
+  PolarityAttribute  p -> setPristinePolarity  p
   LockAttribute      l -> setPristineLock      l
   TacticAttribute{}    -> Just
 

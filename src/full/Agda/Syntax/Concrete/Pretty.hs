@@ -146,11 +146,19 @@ instance Pretty Cohesion where
   pretty Continuous = mempty
   pretty Squash  = "@⊤"
 
+instance Pretty ModalPolarity where
+  pretty UnusedPolarity = "@unused"
+  pretty StrictlyPositive = "@++"
+  pretty Positive = "@+"
+  pretty Negative = "@-"
+  pretty MixedPolarity = mempty
+
 instance Pretty Modality where
   pretty mod = hsep
     [ pretty (getRelevance mod)
     , pretty (getQuantity mod)
     , pretty (getCohesion mod)
+    , pretty (getModalPolarity mod)
     ]
 
 -- | Show the attributes necessary to recover a modality, in long-form
