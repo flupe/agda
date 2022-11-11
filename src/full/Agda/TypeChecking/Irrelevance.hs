@@ -125,8 +125,17 @@ workOnTypes' experimental
      then modifyContextInfo (mapRelevance irrToNonStrict)
      else id)
   . applyQuantityToJudgement zeroQuantity
+  . applyPolarityToContext (withStandardLock UnusedPolarity)
   . typeLevelReductions
   . localTC (\ e -> e { envWorkingOnTypes = True })
+
+applyPolarityToContext :: (MonadTCEnv tcm, LensModalPolarity p) => p -> tcm a -> tcm a
+applyPolarityToContext p = localTC
+  $ over eContext     (map $ inverseApplyPolarity pol)
+  . over eLetBindings (Map.map . fmap . onLetBindingType
+                       $ inverseApplyPolarity pol)
+  where
+    pol = getModalPolarity p
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,
@@ -235,8 +244,8 @@ applyModalityToContextOnly m = localTC
 -- Precondition: The relevance component must not be 'Relevant'.
 applyModalityToJudgementOnly :: (MonadTCEnv tcm) => Modality -> tcm a -> tcm a
 applyModalityToJudgementOnly m =
-  localTC $ over eRelevance (composeRelevance (getRelevance m)) .
-            over eQuantity  (composeQuantity  (getQuantity m))
+  localTC $ over eRelevance     (composeRelevance (getRelevance m)) .
+            over eQuantity      (composeQuantity  (getQuantity m))
 
 -- | Like 'applyModalityToContext', but only act on context (for Relevance) if
 --   @--irrelevant-projections@.
@@ -247,6 +256,7 @@ applyModalityToContextFunBody thing cont = do
       {-then-} (applyModalityToContext m cont)                -- enable global irr. defs always
       {-else-} (applyRelevanceToContextFunBody (getRelevance m)
                $ applyCohesionToContext (getCohesion m)
+               $ applyPolarityToContext (getModalPolarity m)
                $ applyQuantityToJudgement (getQuantity m) cont) -- enable local irr. defs only when option
   where
     m = getModality thing
@@ -395,7 +405,7 @@ instance UsableModality Term where
       fmod <- modalityOfConst f
       -- Pure modalities don't matter here, only positional ones, hence remove
       -- them from the equation.
-      let ok = setCohesion Flat fmod `moreUsableModality` mod
+      let ok = setModalPolarity (withStandardLock MixedPolarity) (setCohesion Flat fmod) `moreUsableModality` mod
       reportSDoc "tc.irr" 50 $
         "Definition" <+> prettyTCM (Def f []) <+>
         text ("has modality " ++ show fmod ++ ", which is a " ++
@@ -416,7 +426,8 @@ instance UsableModality Term where
     Pi a b   -> usableMod domMod (unEl $ unDom a) `and2M` usableModAbs (getArgInfo a) mod (unEl <$> b)
       where
         domMod = mapQuantity (composeQuantity $ getQuantity a) $
-                 mapCohesion (composeCohesion $ getCohesion a) mod
+                 mapCohesion (composeCohesion $ getCohesion a) $
+                 mapModalPolarity (composePolarity $ getModalPolarity a) mod
     -- Andrea 15/10/2020 not updating these cases yet, but they are quite suspicious,
     -- do we have special typing rules for Sort and Level?
     Sort s   -> usableMod mod s
