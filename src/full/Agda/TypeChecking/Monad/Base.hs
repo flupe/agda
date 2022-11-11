@@ -1629,6 +1629,10 @@ instance LensQuantity MetaInfo where
 instance LensRelevance MetaInfo where
   mapRelevance f = mapModality (mapRelevance f)
 
+instance LensModalPolarity MetaInfo where
+  getModalPolarity   = getModalPolarity . getModality
+  mapModalPolarity f = mapModality (mapModalPolarity f)
+
 -- | For printing, we couple a meta with its name suggestion.
 data NamedMeta = NamedMeta
   { nmSuggestion :: MetaNameSuggestion
@@ -1692,6 +1696,9 @@ instance LensRelevance RemoteMetaVariable where
 
 instance LensQuantity RemoteMetaVariable where
   mapQuantity f = mapModality (mapQuantity f)
+
+instance LensModalPolarity RemoteMetaVariable where
+  mapModalPolarity f = mapModality (mapModalPolarity f)
 
 normalMetaPriority :: MetaPriority
 normalMetaPriority = MetaPriority 0
@@ -2170,6 +2177,7 @@ instance LensArgInfo Definition where
 instance LensModality  Definition where
 instance LensQuantity  Definition where
 instance LensRelevance Definition where
+instance LensModalPolarity Definition where
 
 data NumGeneralizableArgs
   = NoGeneralizableArgs
@@ -4125,6 +4133,7 @@ currentModality = do
   q <- viewTC eQuantity
   return Modality
     { modRelevance = r
+    , modPolarity  = defaultPolarity
     , modQuantity  = q
     , modCohesion  = unitCohesion
     }
@@ -4831,6 +4840,7 @@ data TypeError
         | VariableIsErased Name
         | VariableIsOfUnusableCohesion Name Cohesion
         | InvalidModalTelescopeUse Term Modality Modality Definition
+        | VariableIsOfUnusablePolarity Name PolarityModality
         | UnequalLevel Comparison Level Level
         | UnequalTerms Comparison Term Term CompareAs
         | UnequalRelevance Comparison Term Term
