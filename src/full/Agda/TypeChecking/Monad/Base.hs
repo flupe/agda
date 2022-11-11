@@ -4239,6 +4239,7 @@ data TypeError
         | VariableIsIrrelevant Name
         | VariableIsErased Name
         | VariableIsOfUnusableCohesion Name Cohesion
+        | VariableIsOfUnusablePolarity Name ModalPolarity
         | UnequalLevel Comparison Level Level
         | UnequalTerms Comparison Term Term CompareAs
         | UnequalTypes Comparison Type Type

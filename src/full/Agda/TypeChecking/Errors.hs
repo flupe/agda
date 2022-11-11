@@ -231,6 +231,7 @@ errorString err = case err of
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
   VariableIsErased{}                       -> "VariableIsErased"
   VariableIsOfUnusableCohesion{}           -> "VariableIsOfUnusableCohesion"
+  VariableIsOfUnusablePolarity{}           -> "VariableIsOfUnusablePolarity"
   UnequalBecauseOfUniverseConflict{}       -> "UnequalBecauseOfUniverseConflict"
   UnequalRelevance{}                       -> "UnequalRelevance"
   UnequalQuantity{}                        -> "UnequalQuantity"
@@ -551,6 +552,9 @@ instance PrettyTCM TypeError where
 
     VariableIsOfUnusableCohesion x c -> fsep
       ["Variable", prettyTCM (nameConcrete x), "is declared", text (show c), "so it cannot be used here"]
+
+    VariableIsOfUnusablePolarity x c -> fsep
+      ["Variable", prettyTCM (nameConcrete x), "can only be used in", text (show c), "position so it cannot be used here"]
 
     UnequalBecauseOfUniverseConflict cmp s t -> fsep $
       [prettyTCM s, notCmp cmp, prettyTCM t, "because this would result in an invalid use of Setω" ]

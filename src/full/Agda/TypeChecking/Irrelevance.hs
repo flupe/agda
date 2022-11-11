@@ -129,6 +129,11 @@ workOnTypes' experimental
   . typeLevelReductions
   . localTC (\ e -> e { envWorkingOnTypes = True })
 
+inverseApplyPolarityToContext :: (MonadTCEnv tcm, LensModalPolarity p) => p -> tcm a -> tcm a
+inverseApplyPolarityToContext p = localTC
+  $ over eContext     (map $ inverseApplyPolarity (getModalPolarity p))
+  . over eLetBindings (Map.map . fmap . second $ inverseApplyPolarity (getModalPolarity p))
+
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,
 --   in an irrelevant function argument otherwise irrelevant variables
