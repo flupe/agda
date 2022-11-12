@@ -1719,7 +1719,7 @@ topPolarity = MixedPolarity
 
 -- | Default used when not caring about polarity
 defaultPolarity :: ModalPolarity
-defaultPolarity = MixedPolarity
+defaultPolarity = StrictlyPositive
 
 
 ---------------------------------------------------------------------------
