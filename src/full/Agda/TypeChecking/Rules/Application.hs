@@ -449,11 +449,23 @@ checkQuantity' x def = do
       return $ if (dq `moreQuantity` q) then Nothing else Just $ DefinitionIsErased x
 
 -- | The second argument is the definition of the first.
+--   Returns 'Nothing' if ok, otherwise the error message.
+checkPolarity' :: QName -> Definition -> TCM (Maybe TypeError)
+checkPolarity' x def = do
+  let dp = getModalPolarity def
+  p <- asksTC getModalPolarity
+  reportSDoc "tc.irr" 50 $ vcat
+    [ "declaration polarity =" <+> text (show dp)
+    , "context     polarity =" <+> text (show p)
+    ]
+  return $ if (dp `morePolarity` p) then Nothing else Just $ DefinitionHasWrongPolarity x dp
+
+-- | The second argument is the definition of the first.
 checkModality' :: QName -> Definition -> TCM (Maybe TypeError)
 checkModality' x def = do
-  checkRelevance' x def >>= \case
-    Nothing    -> checkQuantity' x def
-    err@Just{} -> return err
+  relOk <- checkRelevance' x def
+  quantOk <- maybe (checkQuantity' x def) (return . Just) relOk
+  maybe (checkPolarity' x def) (return . Just) quantOk
 
 -- | The second argument is the definition of the first.
 checkModality :: QName -> Definition -> TCM ()

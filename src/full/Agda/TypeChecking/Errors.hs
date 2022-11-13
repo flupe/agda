@@ -228,6 +228,7 @@ errorString err = case err of
   SplitOnNonEtaRecord{}                    -> "SplitOnNonEtaRecord"
   DefinitionIsIrrelevant{}                 -> "DefinitionIsIrrelevant"
   DefinitionIsErased{}                     -> "DefinitionIsErased"
+  DefinitionHasWrongPolarity{}             -> "DefinitionHasWrongPolarity"
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
   VariableIsErased{}                       -> "VariableIsErased"
   VariableIsOfUnusableCohesion{}           -> "VariableIsOfUnusableCohesion"
@@ -543,6 +544,9 @@ instance PrettyTCM TypeError where
 
     DefinitionIsErased x -> fsep $
       "Identifier" : prettyTCM x : pwords "is declared erased, so it cannot be used here"
+
+    DefinitionHasWrongPolarity x p -> fsep $
+      "Identifier" : prettyTCM x : "is declared with polarity" : text (show p) : pwords ", so it cannot be used here"
 
     VariableIsIrrelevant x -> fsep $
       "Variable" : prettyTCM (nameConcrete x) : pwords "is declared irrelevant, so it cannot be used here"

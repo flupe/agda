@@ -326,7 +326,7 @@ checkDomain lamOrPi xs e = do
 
     t <- applyQuantityToContext q $
          applyCohesionToContext c $
-         inverseApplyPolarityToContext negativePolarity $
+         applyPolarityToContext negativePolarity $
          modEnv lamOrPi $ isType_ e
     -- Andrea TODO: also make sure that LockUniv implies IsLock
     when (any (\ x -> getLock x == IsLock) xs) $ do
