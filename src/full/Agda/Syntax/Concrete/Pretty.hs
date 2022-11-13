@@ -91,6 +91,9 @@ prettyErased = prettyQuantity . asQuantity
 prettyCohesion :: LensCohesion a => a -> Doc -> Doc
 prettyCohesion a = (pretty (getCohesion a) <+>)
 
+prettyPolarity :: LensModalPolarity a => a -> Doc -> Doc
+prettyPolarity a = (pretty (getModalPolarity a) <+>)
+
 prettyTactic :: BoundName -> Doc -> Doc
 prettyTactic = prettyTactic' . bnameTactic
 
@@ -312,6 +315,7 @@ instance Pretty NamedBinding where
                     . prettyHiding x mparens
                     . prettyCohesion x
                     . prettyQuantity x
+                    . prettyPolarity x
                     . prettyTactic bn
         | otherwise = id
     -- Parentheses are needed when an attribute @... is present
@@ -333,6 +337,7 @@ instance Pretty TypedBinding where
         $ prettyFiniteness (binderName $ namedArg y)
         $ prettyCohesion y
         $ prettyQuantity y
+        $ prettyPolarity y
         $ prettyTactic (binderName $ namedArg y) $
         sep [ fsep (map (pretty . NamedBinding False) ys)
             , ":" <+> pretty e ]
@@ -420,7 +425,7 @@ instance Pretty Declaration where
   prettyList = vcat . map pretty
   pretty = \case
     TypeSig i tac x e ->
-      sep [ prettyTactic' tac $ prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ pretty x <+> ":"
+      sep [ prettyTactic' tac $ prettyRelevance i $ prettyCohesion i $ prettyQuantity i $ prettyPolarity i $ pretty x <+> ":"
           , nest 2 $ pretty e
           ]
     FieldSig inst tac x (Arg i e) ->
