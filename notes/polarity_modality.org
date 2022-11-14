@@ -1,21 +1,35 @@
 #+TITLE: Explicit polarity annotations
 
-* Polarity as modality annotations
+OUR PLAN: Defining polarity as a modality annotation
 
 Lattice structure on the modality
 
-        ++      +
-unused              mixed  =?  unknown
+        +      ++
+mixed               unused
             -
 
+partial order on the lattice:
+  mixed < + < ++ < unused
+  mixed <   -    < unused
 
-Composition and addition are used for ie. application.
+An interpretation of a <= b:
+  "a thing with modality `a` can also be used with modality `b`"
+  "b more polar than a"
+  "b more restrictive than a"
 
-Should mixed be equal to unknown?
+** Addition
+
+The addition operation on the latice is the meet (the greatest lower bound).
+
+** Composition and Division
+
+Composition is used for ie. application.
+
+* TODO give an intuition of composition for people that don't know modal tt
 
 Modalities are defined in =Agda/Syntax/Common.hs=, and are put into ArgInfo.
 
-|        | unused | ++     | +      | -      | mixed  |
+|  _*_   | unused | ++     | +      | -      | mixed  |
 |--------+--------+--------+--------+--------+--------|
 | unused | unused | unused | unused | unused | unused |
 | ++     | unused | ++     | +      | -      | mixed  |
@@ -32,13 +46,48 @@ Modalities are defined in =Agda/Syntax/Common.hs=, and are put into ArgInfo.
 | mixed  | unused | unused | unused | unused | mixed |
 
 * Polarities as variance
-+ is covariant
-- is contravariant
-++ is what's necessary to have a fixed point
+
++      is covariant
+-      is contravariant
+++     is what's necessary to take the fixed point (polynomial?)
 unused is 
 
+* Typing rules
+
+  -\Γ ⊢ A : Set    Γ, @(unused \ r) x : A ⊢ B : Set
+───────────────────────────────────────────────────── (T-PI)
+           Γ ⊢ (x : @r A) → B : Set
+
+NOTE: ∀ r, (unused \ r) = mixed
+
+  Γ ⊢ u : (@r x : A) → B    r\Γ ⊢ v : A
+───────────────────────────────────────── (T-APP)
+           Γ ⊢ u v : B[v/x]
+
+  @r x : A ∈ Γ    r ≤ ++
+─────────────────────────── (T-VAR)
+         Γ ⊢ x : A
+
+  Γ ⊢ (@r x : A) → B : Set   Γ, @r x : A ⊢ t : B
+────────────────────────────────────────────────── (T-LAM)
+           Γ ⊢ λx. t : (@r x : A) → B
+
 * TODO Annotations for datatype parameters don't work at all
-We need to rewrite rules for datatype declarations in Haskell style.
+       When defining datatypes in Agda, you write the type you want for constructors,
+       but it's different from what the polynomial functor associated with the datatype looks like.
+       So typechecking constructors is normal typechecking and ignores modality of parameters,
+       but we have to do it to retrieve the telescope of arguments.
+
+       To ensure correct use of parameters (with given polarity) in the constructors,
+       we have to typecheck argument "as an iterated Σ-type", hence:
+
+       TODO explain this better
+       
+       1. Typecheck the constructor type (without modalities in the context),
+	  then reduce to get the argument telescope
+       2. Typecheck each arguments using the *internal* typechecker, with the right
+	  polarities in the context
+
 * DONE Length doesn't work (still checks polarities to the right of the pi type for some reason)
 * DONE Iron out the default polarity stuff
 * TODO Check out the XXX comments
@@ -48,3 +97,11 @@ not be the proper implementation for the rule wrt. Andreas's paper
 * TODO How do we interpret annotated definitions and which ones do we allow?
 * TODO Add some sort of lock emulation
 ie. remember the original modality and also record the following divisions
+* TODO Make the positivity-checker aware of the annotations
+* TODO Improve error reporting when a variable is used with the wrong polarity.
+       Right now, polarity of a variable changes when we go in the domain of a PI,
+       so the error speaks about a modality that is different from the one assigned to the variable initially.
+       The idea is to remember the original modality, and keep track of what it should be divided by
+       when we apply the T-VAR rule. Joris is working on it, apparently that's like implementing locks, but
+       it shouldn't change the typing rules.
+ 
