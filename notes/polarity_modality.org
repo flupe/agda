@@ -1,0 +1,50 @@
+#+TITLE: Explicit polarity annotations
+
+* Polarity as modality annotations
+
+Lattice structure on the modality
+
+        ++      +
+unused              mixed  =?  unknown
+            -
+
+
+Composition and addition are used for ie. application.
+
+Should mixed be equal to unknown?
+
+Modalities are defined in =Agda/Syntax/Common.hs=, and are put into ArgInfo.
+
+|        | unused | ++     | +      | -      | mixed  |
+|--------+--------+--------+--------+--------+--------|
+| unused | unused | unused | unused | unused | unused |
+| ++     | unused | ++     | +      | -      | mixed  |
+| +      | unused | +      | +      | -      | mixed  |
+| -      | unused | -      | -      | +      | mixed  |
+| mixed  | unused | mixed  | mixed  | mixed  | mixed  |
+
+| \      | unused | ++     | +      | -      | mixed |
+|--------+--------+--------+--------+--------+-------|
+| unused | mixed  | mixed  | mixed  | mixed  | mixed |
+| ++     | unused | ++     | +      | -      | mixed |
+| +      | unused | unused | +      | -      | mixed |
+| -      | unused | unused | -      | +      | mixed |
+| mixed  | unused | unused | unused | unused | mixed |
+
+* Polarities as variance
++ is covariant
+- is contravariant
+++ is what's necessary to have a fixed point
+unused is 
+
+* TODO Annotations for datatype parameters don't work at all
+We need to rewrite rules for datatype declarations in Haskell style.
+* DONE Length doesn't work (still checks polarities to the right of the pi type for some reason)
+* DONE Iron out the default polarity stuff
+* TODO Check out the XXX comments
+* TODO workOnTypes works properly, but we may want to add the proper pi codomain rule for erasure
+It may be called when checking the type in the domain of a pi type, which might
+not be the proper implementation for the rule wrt. Andreas's paper
+* TODO How do we interpret annotated definitions and which ones do we allow?
+* TODO Add some sort of lock emulation
+ie. remember the original modality and also record the following divisions
