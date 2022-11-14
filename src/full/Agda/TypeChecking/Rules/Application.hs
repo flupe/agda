@@ -454,7 +454,7 @@ checkPolarity' :: QName -> Definition -> TCM (Maybe TypeError)
 checkPolarity' x def = do
   let dp = getModalPolarity def
   p <- asksTC getModalPolarity
-  reportSDoc "tc.irr" 50 $ vcat
+  reportSDoc "tc.mod.pol" 50 $ vcat
     [ "declaration polarity =" <+> text (show dp)
     , "context     polarity =" <+> text (show p)
     ]
