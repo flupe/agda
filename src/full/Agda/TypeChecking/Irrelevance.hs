@@ -258,6 +258,7 @@ applyModalityToContextFunBody thing cont = do
       {-then-} (applyModalityToContext m cont)                -- enable global irr. defs always
       {-else-} (applyRelevanceToContextFunBody (getRelevance m)
                $ applyCohesionToContext (getCohesion m)
+               $ applyPolarityToContext (getModalPolarity m)
                $ applyQuantityToContext (getQuantity m) cont) -- enable local irr. defs only when option
   where
     m = getModality thing
