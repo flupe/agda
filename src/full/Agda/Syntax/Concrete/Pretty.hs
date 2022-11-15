@@ -226,7 +226,7 @@ instance Pretty Expr where
               lambda <+>
               prettyErased e (bracesAndSemicolons (fmap pretty pes))
             Fun _ e1 e2 ->
-                sep [ prettyCohesion e1 (prettyQuantity e1 (pretty e1)) <+> arrow
+                sep [ pretty (getModality e1) <+> pretty e1 <+> arrow
                     , pretty e2
                     ]
             Pi tel e ->
@@ -430,7 +430,7 @@ instance Pretty Declaration where
           ]
     FieldSig inst tac x (Arg i e) ->
       mkInst inst $ mkOverlap i $
-      prettyRelevance i $ prettyHiding i id $ prettyCohesion i $ prettyQuantity i $
+      prettyRelevance i $ prettyHiding i id $ prettyCohesion i $ prettyQuantity i $ prettyPolarity i $
       pretty $ TypeSig (setRelevance Relevant i) tac x e
       where
         mkInst (InstanceDef _) d = sep [ "instance", nest 2 d ]

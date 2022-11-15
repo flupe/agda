@@ -297,10 +297,14 @@ instance PrettyTCM Relevance where
 instance PrettyTCM Quantity where
   prettyTCM = pretty
 
+instance PrettyTCM ModalPolarity where
+  prettyTCM = pretty
+
 instance PrettyTCM Modality where
   prettyTCM mod = hsep
     [ prettyTCM (getQuantity mod)
     , prettyTCM (getRelevance mod)
+    , prettyTCM (getModalPolarity mod)
     ]
 
 instance PrettyTCM Blocker where
