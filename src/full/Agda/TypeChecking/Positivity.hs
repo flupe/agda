@@ -1,3 +1,4 @@
+
 {-# LANGUAGE NondecreasingIndentation #-}
 
 -- | Check that a datatype is strictly positive.
@@ -375,7 +376,7 @@ data OccEnv = OccEnv
     --   @'genericReplicate' n 'Nothing' ++ 'map' ('Just' . 'AnArg') is@,
     --   for some @n@ and @is@, where @is@ is decreasing
     --   (non-strictly).
-  , depth :: Int
+--  , depth :: Int
     -- ^ Number of locally bound variables
   , inf   :: Maybe QName
     -- ^ Name for ∞ builtin.
@@ -385,16 +386,17 @@ data OccEnv = OccEnv
 -- | Monad for computing occurrences.
 type OccM = Reader OccEnv
 
+{-
 -- | Returns the actual index of a variable in the outer context
 getVarIndex :: Int -> OccM (Maybe Nat)
 getVarIndex k = do
   d <- reader depth
   if d > k then return Nothing
            else return $ Just (k - d)
-
+-}
 -- | Runs a computation under a binder
 underBinder :: OccM a -> OccM a
-underBinder = local (\ e -> e { depth = depth e + 1 })
+underBinder = local (\ e -> e { vars = Nothing : vars e })
 
 instance (Semigroup a, Monoid a) => Monoid (OccM a) where
   mempty  = return mempty
@@ -416,13 +418,17 @@ getOccurrences
 getOccurrences vars a = do
   reportSDoc "tc.pos.occ" 70 $ "computing occurrences in " <+> text (show a)
   reportSDoc "tc.pos.occ" 20 $ "computing occurrences in " <+> prettyTCM a
-  runReader (occurrences a) . OccEnv vars 0 . fmap nameOfInf <$> coinductionKit
+  reportSDoc "tc.pos.var" 20 $ "variables in context: " <+> pretty vars
+  runReader (occurrences a) . OccEnv vars . fmap nameOfInf <$> coinductionKit
 
 class ComputeOccurrences a where
   occurrences :: a -> OccM OccurrencesBuilder
 
   default occurrences :: (Foldable t, ComputeOccurrences b, t b ~ a) => a -> OccM OccurrencesBuilder
   occurrences = foldMap occurrences
+
+--instance ComputeOccurrences Telescope where
+--  occurrences tel = foldr1 (\ a b -> mappend <$> a <*> underBinder b) $ fmap occurrences tel
 
 instance ComputeOccurrences Clause where
   occurrences cl = do
@@ -455,19 +461,16 @@ instance ComputeOccurrences Term where
   occurrences v = case unSpine v of
     Var i args -> do-- (asks (occI . vars)) <> (OccursAs VarArg _ <$> occurrences args)
       occs <- mapM occurrences args
-      i'   <- getVarIndex i
-      case i' of
-        -- local variable, treated as mixed on all its arguments
-        Nothing -> return . Concat $ zipWith (OccursAs . VarArg Nothing) [0..] occs
-        Just k  -> do
-          item <- reader ((!! k) . vars)
-          case item of
-            Just (AnArg _ (Just t)) ->
-              let tel = telToList $ theTel t in
-              return . Concat $ zipWith (\i o ->
-                let pol = Just $ modalPolarityToOccurrence $ getModalPolarity (tel !! i)
-                in OccursAs (VarArg pol i) o) [0..] occs
-            _ -> __IMPOSSIBLE__
+      item <- reader ((!! i) . vars)
+      case item of
+        Just (AnArg _ (Just t)) ->
+          let tel = telToList $ theTel t in
+          return . Concat $ zipWith (\i o ->
+            let pol = Just $ modalPolarityToOccurrence $ getModalPolarity (tel !! i)
+            in OccursAs (VarArg pol i) o) [0..] occs
+        _ -> return . Concat $ zipWith (\i o ->
+              OccursAs (VarArg Nothing i) o) [0..] occs -- treat local variables and arguments as mixed,
+                                                          -- because we have no reliable way to get their type
           
       -- where
       -- occI vars = maybe mempty OccursHere $ indexWithDefault unbound vars i
@@ -507,7 +510,7 @@ instance ComputeOccurrences Type where
 
 instance ComputeOccurrences a => ComputeOccurrences (Tele a) where
   occurrences EmptyTel        = mempty
-  occurrences (ExtendTel a b) = occurrences (a, b)
+  occurrences (ExtendTel a b) = occurrences a <> underBinder (occurrences b)
 
 instance ComputeOccurrences a => ComputeOccurrences (Abs a) where
   occurrences (Abs   _ b) = withExtendedOccEnv Nothing $ occurrences b
@@ -555,17 +558,18 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
     Datatype{dataPars = np0, dataCons = cs} -> do
       -- Andreas, 2013-02-27 (later edited by someone else): First,
       -- include each index of an inductive family.
-      TelV tel _ <- telView $ defType def
+      TelV telD _ <- telView $ defType def
       -- Andreas, 2017-04-26, issue #2554: count first index as parameter if it has type Size.
       -- We compute sizeIndex=1 if first first index has type Size, otherwise sizeIndex==0
-      sizeIndex <- caseList (drop np0 $ telToList tel) (return 0) $ \ dom _ -> do
+      sizeIndex <- caseList (drop np0 $ telToList telD) (return 0) $ \ dom _ -> do
         caseMaybeM (isSizeType dom) (return 0) $ \ _ -> return 1
       let np = np0 + sizeIndex
-      let xs = [np .. size tel - 1] -- argument positions corresponding to indices
+      let xs = [np .. size telD - 1] -- argument positions corresponding to indices
       ioccs <- Concat <$>
-        ((++) <$> mapM (\i -> do tv <- telView $ snd $ unDom $ telToList tel !! (np - i - 1)
+        ((++) <$> mapM (\i -> do tv <- telView $ snd $ unDom $ telToList telD !! (size telD - i - 1)
+           --                      return $ OccursHere $ AnArg i (Just tv)) [np0 .. np - 1] -- TODO(flupe): ....
                                  return $ OccursHere $ AnArg i (Just tv)) [np0 .. np - 1] -- TODO(flupe): ....
-              <*> mapM (\i -> do tv <- telView $ snd $ unDom $ telToList tel !! (np - i - 1)
+              <*> mapM (\i -> do tv <- telView $ snd $ unDom $ telToList telD !! (size telD - i - 1)
                                  return $ OccursAs IsIndex $ OccursHere $ AnArg i (Just tv)) xs)
       -- Then, we compute the occurrences in the constructor types.
       let conOcc c = do
@@ -579,14 +583,15 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
             -- Normalization needed e.g. for test/succeed/Bush.agda.
             -- (Actually, for Bush.agda, reducing the parameters should be sufficient.)
             tel1' <- addContext tel0 $ normalise $ tel1
-            let vars n = mapM (\i -> do tv <- telView $ snd $ unDom $ telToList tel !! (np - i - 1)
+            let vars n = mapM (\i -> do tv <- telView $ snd $ unDom $ telToList telD !! (size telD - i - 1)
                                         return $ Just $ AnArg i (Just tv)) (downFrom n)
 
             reportSLn "tc.pos.args" 50 =<< ("Adding datatypes parameters in context " ++) . prettyShow <$> vars np
 
             -- Occurrences in the types of the constructor arguments.
             vnp <- vars np
-            mappend (OccursAs (ConArgType c) <$> getOccurrences vnp tel1') $ do
+            (OccursAs (ConArgType c) <$> getOccurrences vnp tel1')
+              {-$ do
               -- Occurrences in the indices of the data type the constructor targets.
               -- Andreas, 2020-02-15, issue #4447:
               -- WAS: @t@ is not necessarily a data type, but it could be something
@@ -613,13 +618,13 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
                 Con{}      -> __IMPOSSIBLE__  -- not a type
                 Level{}    -> __IMPOSSIBLE__  -- not a type
                 DontCare{} -> __IMPOSSIBLE__  -- not a type
-                Dummy{}    -> __IMPOSSIBLE__
+                Dummy{}    -> __IMPOSSIBLE__ -}
       mconcat $ pure ioccs : map conOcc cs
 
     Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Record{recPars = np, recTel = tel} -> do
       let (tel0,tel1) = splitTelescopeAt np tel
-          vars n = mapM (\i -> do tv <- telView $ snd $ unDom $ telToList tel !! (n - i - 1)
+          vars n = mapM (\i -> do tv <- telView $ snd $ unDom $ telToList tel !! (size tel - i - 1)
                                   return $ Just $ AnArg i (Just tv)) (downFrom n)
       vnp <- vars np
       getOccurrences vnp =<< addContext tel0 (normalise tel1) -- Andreas, 2017-01-01, issue #1899, treat like data types
