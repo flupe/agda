@@ -223,6 +223,7 @@ errorString err = case err of
   TooManyPolarities{}                      -> "TooManyPolarities"
   SplitOnIrrelevant{}                      -> "SplitOnIrrelevant"
   SplitOnUnusableCohesion{}                -> "SplitOnUnusableCohesion"
+  SplitOnUnusablePolarity{}                -> "SplitOnUnusablePolarity"
   -- UNUSED: -- SplitOnErased{}                          -> "SplitOnErased"
   SplitOnNonVariable{}                     -> "SplitOnNonVariable"
   SplitOnNonEtaRecord{}                    -> "SplitOnNonEtaRecord"
@@ -524,6 +525,10 @@ instance PrettyTCM TypeError where
 
     SplitOnUnusableCohesion t -> fsep $
       pwords "Cannot pattern match against" ++ [text $ verbalize $ getCohesion t] ++
+      pwords "argument of type" ++ [prettyTCM $ unDom t]
+
+    SplitOnUnusablePolarity t -> fsep $
+      pwords "Cannot pattern match against" ++ [text $ verbalize $ getModalPolarity t] ++
       pwords "argument of type" ++ [prettyTCM $ unDom t]
 
     -- UNUSED:

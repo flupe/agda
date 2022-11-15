@@ -1614,6 +1614,10 @@ instance PartialOrd ModalPolarity where
 usablePolarity :: LensModalPolarity a => a -> Bool
 usablePolarity a = getModalPolarity a `morePolarity` StrictlyPositive
 
+-- | @splittablePolarity pol == False@ iff we cannot split on a variable of @pol@.
+splittablePolarity :: LensModalPolarity a => a -> Bool
+splittablePolarity a = getModalPolarity a `morePolarity` MixedPolarity
+
 -- | 'ModalPolarity' composition.
 --   'UnusedPolarity' is dominant, 'StrictlyPositive' is neutral.
 composePolarity :: ModalPolarity -> ModalPolarity -> ModalPolarity
