@@ -535,7 +535,7 @@ instance HasRange Modality where
   getRange (Modality r q c p) = getRange (r, q, c, p)
 
 instance KillRange Modality where
-  killRange (Modality r q c p) = killRange3 Modality r q c p
+  killRange (Modality r q c p) = killRange4 Modality r q c p
 
 instance NFData Modality where
 
