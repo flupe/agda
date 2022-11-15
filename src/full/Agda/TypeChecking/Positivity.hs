@@ -280,7 +280,7 @@ getDefArity def = do
 
 -- Computing occurrences --------------------------------------------------
 
-data Item = AnArg Nat (Maybe TelView)
+data Item = AnArg Nat (Maybe [Dom (ArgName, Type)])
             -- ^ is @Maybe Type@ is @Just t@, it means the item is a parameter of a datatype
           | ADef QName
   deriving (Eq, Ord, Show)
@@ -290,7 +290,7 @@ instance HasRange Item where
   getRange (ADef qn)   = getRange qn
 
 instance Pretty Item where
-  prettyPrec p (AnArg i t) = P.mparens (p > 9) $ "AnArg" P.<+> P.pretty i -- P.<+> P.pretty t
+  prettyPrec p (AnArg i t) = P.mparens (p > 9) $ "AnArg" P.<+> P.pretty t
   prettyPrec p (ADef qn) = P.mparens (p > 9) $ "ADef"  P.<+> P.pretty qn
 
 type Occurrences = Map Item [OccursWhere]
@@ -464,13 +464,15 @@ instance ComputeOccurrences Term where
       item <- reader ((!! i) . vars)
       case item of
         Just (AnArg _ (Just t)) ->
-          let tel = telToList $ theTel t in
+          --let tel = telToList $ theTel t in
           return . Concat $ zipWith (\i o ->
-            let pol = Just $ modalPolarityToOccurrence $ getModalPolarity (tel !! i)
+            let pol = Just $ modalPolarityToOccurrence $ getModalPolarity (t !! i)
             in OccursAs (VarArg pol i) o) [0..] occs
         _ -> return . Concat $ zipWith (\i o ->
               OccursAs (VarArg Nothing i) o) [0..] occs -- treat local variables and arguments as mixed,
                                                           -- because we have no reliable way to get their type
+            -- TODO(flupe): also keep track of the variable itself, if we need to account for it or not
+            -- as was the case below
           
       -- where
       -- occI vars = maybe mempty OccursHere $ indexWithDefault unbound vars i
@@ -566,10 +568,10 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
       let np = np0 + sizeIndex
       let xs = [np .. size telD - 1] -- argument positions corresponding to indices
       ioccs <- Concat <$>
-        ((++) <$> mapM (\i -> do tv <- telView $ snd $ unDom $ telToList telD !! (size telD - i - 1)
+        ((++) <$> mapM (\i -> do tv <- telToList . theTel <$> (telView $ snd $ unDom $ telToList telD !! i)
            --                      return $ OccursHere $ AnArg i (Just tv)) [np0 .. np - 1] -- TODO(flupe): ....
                                  return $ OccursHere $ AnArg i (Just tv)) [np0 .. np - 1] -- TODO(flupe): ....
-              <*> mapM (\i -> do tv <- telView $ snd $ unDom $ telToList telD !! (size telD - i - 1)
+              <*> mapM (\i -> do tv <- telToList . theTel <$> (telView $ snd $ unDom $ telToList telD !! i)
                                  return $ OccursAs IsIndex $ OccursHere $ AnArg i (Just tv)) xs)
       -- Then, we compute the occurrences in the constructor types.
       let conOcc c = do
@@ -583,7 +585,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
             -- Normalization needed e.g. for test/succeed/Bush.agda.
             -- (Actually, for Bush.agda, reducing the parameters should be sufficient.)
             tel1' <- addContext tel0 $ normalise $ tel1
-            let vars n = mapM (\i -> do tv <- telView $ snd $ unDom $ telToList telD !! (size telD - i - 1)
+            let vars n = mapM (\i -> do tv <- telToList . theTel <$> (telView $ snd $ unDom $ telToList telD !! i)
                                         return $ Just $ AnArg i (Just tv)) (downFrom n)
 
             reportSLn "tc.pos.args" 50 =<< ("Adding datatypes parameters in context " ++) . prettyShow <$> vars np
@@ -624,7 +626,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
     Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Record{recPars = np, recTel = tel} -> do
       let (tel0,tel1) = splitTelescopeAt np tel
-          vars n = mapM (\i -> do tv <- telView $ snd $ unDom $ telToList tel !! (size tel - i - 1)
+          vars n = mapM (\i -> do tv <- telToList . theTel <$> (telView $ snd $ unDom $ telToList tel !! i)
                                   return $ Just $ AnArg i (Just tv)) (downFrom n)
       vnp <- vars np
       getOccurrences vnp =<< addContext tel0 (normalise tel1) -- Andreas, 2017-01-01, issue #1899, treat like data types
