@@ -319,9 +319,13 @@ checkTelescope' lamOrPi (b : tel) ret =
 checkDomain :: (LensLock a, LensModality a) => LamOrPi -> List1 a -> A.Expr -> TCM Type
 checkDomain lamOrPi xs e = do
     let (c :| cs) = fmap (getCohesion . getModality) xs
+    -- Since these bindings all originate from a single parenthesized blob (do they?),
+    -- they cannot possibly have different cohesion annotations.
     unless (all (c ==) cs) $ __IMPOSSIBLE__
 
     let (q :| qs) = fmap (getQuantity . getModality) xs
+    -- Since these bindings all originate from a single parenthesized blob (do they?),
+    -- they cannot possibly have different quantity annotations.
     unless (all (q ==) qs) $ __IMPOSSIBLE__
 
     t <- applyQuantityToContext q $
@@ -359,43 +363,42 @@ checkTypedBindings :: LamOrPi -> A.TypedBinding -> (Telescope -> TCM a) -> TCM a
 checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
     let xs = fmap (updateNamedArg $ A.unBind . A.binderName) xps
 
-    do
-      tac <- traverse (checkTacticAttribute lamOrPi) (tbTacticAttr tac)
-      whenJust tac $ \ t -> reportSDoc "tc.term.tactic" 30 $ "Checked tactic attribute:" <?> prettyTCM t
-      -- Andreas, 2011-04-26 irrelevant function arguments may appear
-      -- non-strictly in the codomain type
-      -- 2011-10-04 if flag --experimental-irrelevance is set
-      experimental <- optExperimentalIrrelevance <$> pragmaOptions
+    tac <- traverse (checkTacticAttribute lamOrPi) (tbTacticAttr tac)
+    whenJust tac $ \ t -> reportSDoc "tc.term.tactic" 30 $ "Checked tactic attribute:" <?> prettyTCM t
+    -- Andreas, 2011-04-26 irrelevant function arguments may appear
+    -- non-strictly in the codomain type
+    -- 2011-10-04 if flag --experimental-irrelevance is set
+    experimental <- optExperimentalIrrelevance <$> pragmaOptions
 
-      t <- checkDomain lamOrPi xps e
+    t <- checkDomain lamOrPi xps e
 
-      -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
-      -- instance argument does not have the right shape
-      List1.unlessNull (List1.filter isInstance xps) $ \ ixs -> do
-        (tel, target) <- getOutputTypeName t
-        case target of
-          OutputTypeName{} -> return ()
-          OutputTypeVar{}  -> return ()
-          OutputTypeVisiblePi{} -> warning . InstanceArgWithExplicitArg =<< prettyTCM (A.mkTBind r ixs e)
-          OutputTypeNameNotYetKnown{} -> return ()
-          NoOutputTypeName -> warning . InstanceNoOutputTypeName =<< prettyTCM (A.mkTBind r ixs e)
+    -- Jesper, 2019-02-12, Issue #3534: warn if the type of an
+    -- instance argument does not have the right shape
+    List1.unlessNull (List1.filter isInstance xps) $ \ ixs -> do
+      (tel, target) <- getOutputTypeName t
+      case target of
+        OutputTypeName{} -> return ()
+        OutputTypeVar{}  -> return ()
+        OutputTypeVisiblePi{} -> warning . InstanceArgWithExplicitArg =<< prettyTCM (A.mkTBind r ixs e)
+        OutputTypeNameNotYetKnown{} -> return ()
+        NoOutputTypeName -> warning . InstanceNoOutputTypeName =<< prettyTCM (A.mkTBind r ixs e)
 
-      let setTac tac EmptyTel            = EmptyTel
-          setTac tac (ExtendTel dom tel) = ExtendTel dom{ domTactic = tac } $ setTac (raise 1 tac) <$> tel
-          xs' = fmap (modMod lamOrPi experimental) xs
-      let tel = setTac tac $ namedBindsToTel1 xs t
+    let setTac tac EmptyTel            = EmptyTel
+        setTac tac (ExtendTel dom tel) = ExtendTel dom{ domTactic = tac } $ setTac (raise 1 tac) <$> tel
+        xs' = fmap (modMod lamOrPi experimental) xs
+    let tel = setTac tac $ namedBindsToTel1 xs t
 
-      addContext (xs', t) $ addTypedPatterns xps (ret tel)
+    addContext (xs', t) $ addTypedPatterns xps (ret tel)
 
-      where
-          -- if we are checking a typed lambda, we resurrect before we check the
-          -- types, but do not modify the new context entries
-          -- otherwise, if we are checking a pi, we do not resurrect, but
-          -- modify the new context entries
-          modEnv LamNotPi = workOnTypes
-          modEnv _        = id
-          modMod PiNotLam xp = inverseApplyPolarity UnusedPolarity . (if xp then mapRelevance irrToNonStrict else id)
-          modMod _        _  = id
+    where
+        -- if we are checking a typed lambda, we resurrect before we check the
+        -- types, but do not modify the new context entries
+        -- otherwise, if we are checking a pi, we do not resurrect, but
+        -- modify the new context entries
+        modEnv LamNotPi = workOnTypes
+        modEnv _        = id
+        modMod PiNotLam xp = inverseApplyPolarity UnusedPolarity . (if xp then mapRelevance irrToNonStrict else id)
+        modMod _        _  = id
 
 checkTypedBindings lamOrPi (A.TLet _ lbs) ret = do
     checkLetBindings lbs (ret EmptyTel)
