@@ -65,6 +65,7 @@ import Agda.Termination.TermCheck
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List (zipWithKeepRest)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -627,20 +628,17 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
       whenM ((> 0) <$> getContextSize) $ do
         typeError $ GenericError $ "We don't like postulated sizes in parametrized modules."
 
-  -- Ensure that polarity pragmas do not contain too many occurrences.
-  (occs, pols) <- case mp of
-    Nothing   -> return ([], [])
-    Just occs -> do
-      TelV tel _ <- telView t
-      let n = length (telToList tel)
-      when (n < length occs) $
-        typeError $ TooManyPolarities x n
-      let pols = map polFromOcc occs
-      reportSLn "tc.polarity.pragma" 10 $
-        "Setting occurrences and polarity for " ++ prettyShow x ++ ":\n  " ++
-        prettyShow occs ++ "\n  " ++ prettyShow pols
-      return (occs, pols)
+  TelV tel _ <- telView t
+  let eoccs = modalPolarityToOccurrence . modPolarityAnn . getModalPolarity <$> telToList tel
 
+  occs <- case mp of
+    Nothing -> return eoccs
+    Just occs -> do
+      -- Ensure that polarity pragmas do not contain too many occurrences.
+      let n = length (telToList tel)
+      when (n < length occs) $ typeError (TooManyPolarities x n)
+
+      return occs
 
   -- Set blocking tag to MissingClauses if we still expect clauses
   let blk = case kind of
@@ -663,6 +661,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
           _         -> __IMPOSSIBLE__
         where fun = FunctionDefn funD{ _funAbstr = Info.defAbstract i }
 
+  let pols = map polFromOcc eoccs
+
   addConstant x =<< do
     useTerPragma $ defn
         { defArgOccurrences    = occs
@@ -670,6 +670,10 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
         , defGeneralizedParams = genParams
         , defBlocked           = blk
         }
+
+  reportSLn "tc.polarity" 10 $
+    "Setting occurrences and polarity for " ++ prettyShow x ++ ":\n  " ++
+    prettyShow occs ++ "\n  " ++ prettyShow pols
 
   -- Add the definition to the instance table, if needed
   case Info.defInstance i of
