@@ -104,4 +104,7 @@ ie. remember the original modality and also record the following divisions
        The idea is to remember the original modality, and keep track of what it should be divided by
        when we apply the T-VAR rule. Joris is working on it, apparently that's like implementing locks, but
        it shouldn't change the typing rules.
- 
+* TODO Remove left division when eliminating into a term
+Only divide when going outside of the copattern, because that translates to going into an application.
+
+Should look at what happens for a simple constant definition with @irr. When does the context get divided by the modality?
