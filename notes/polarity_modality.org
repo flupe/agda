@@ -45,12 +45,39 @@ Modalities are defined in =Agda/Syntax/Common.hs=, and are put into ArgInfo.
 | -      | unused | unused | -      | +      | mixed |
 | mixed  | unused | unused | unused | unused | mixed |
 
+** With strictly negative & strictly mixed
+
+| _*_ | =  | ++ | +  | -- | -  | ** | *  |
+|-----+----+----+----+----+----+----+----|
+| =   | =  | =  | =  | =  | =  | =  | =  |
+| ++  | =  | ++ | +  | -- | -  | ** | *  |
+| +   | =  | +  | +  | -  | -  | *  | *  |
+| --  | =  | -- | -  | +  | +  | *  | *  |
+| -   | =  | -  | -  | +  | +  | *  | *  |
+| **  | =  | ** | *  | *  | *  | *  | *  |
+| *   | =  | *  | *  | *  | *  | *  | *  |
+
+| _\_ | =  | ++ | +  | -- | -  | ** | *  |
+|-----+----+----+----+----+----+----+----|
+| =   | *  | *  | *  | *  | *  | *  | *  |
+| ++  | =  | ++ | +  | -- | -  | ** | *  |
+| +   | =  | =  | +  | =  | -  | =  | *  |
+| --  | =  | =  | -  | ++ | +  | ++ | *  |
+| -   | =  | =  | -  | =  | +  | =  | *  |
+| **  | =  | =  | =  | =  | =  | ++ | *  |
+| *   | =  | =  | =  | =  | =  | =  | *  |
+
 * Polarities as variance
 
 +      is covariant
 -      is contravariant
 ++     is what's necessary to take the fixed point (polynomial?)
-unused is 
+unused is parametric/natural/erased/isovariant/...
+
+** With strictly negative & strictly mixed
+
+-- appears to the left of exactly one arrow.
+** appears to the left of at most one arrow.
 
 * Typing rules
 
