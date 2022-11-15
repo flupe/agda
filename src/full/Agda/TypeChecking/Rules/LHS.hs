@@ -958,9 +958,11 @@ checkLHS mf = updateModality checkLHS_ where
     -- we need to check the lhs in irr. cxt. (see Issue 939).
  updateModality cont st@(LHSState tel ip problem target psplit _) = do
       let m = getModality target
+      reportSDoc "tc.lhs" 40 $ vcat
+        [ "while eliminating into" <+> addContext tel (prettyTCM target)
+        , "applying modality '" <+> pretty m <+> "' to context" <+> (prettyTCM =<< getContext)]
       applyModalityToContext m $ do
-        cont $ over (lhsTel . listTel)
-                 (map $ inverseApplyModalityButNotQuantity m) st
+        cont st
         -- Andreas, 2018-10-23, issue #3309
         -- the modalities in the clause telescope also need updating.
 
@@ -1079,7 +1081,12 @@ checkLHS mf = updateModality checkLHS_ where
           ip'      = ip ++ [projP]
           -- drop the projection pattern (already splitted)
           problem' = over problemRestPats tail problem
-      liftTCM $ updateLHSState (LHSState tel ip' problem' target' psplit ixsplit)
+          tel' = fmap (inverseApplyModalityButNotQuantity (getModality target')) tel
+      reportSDoc "tc.lhs.split" 50 $ vcat
+        [ text "while eliminating a copattern, applied modality" <+> pretty (getModality target')
+        , text "to telescope" <+> prettyTCM tel'
+        ]
+      liftTCM $ updateLHSState (LHSState tel' ip' problem' target' psplit ixsplit)
 
 
     -- Split a Partial.
