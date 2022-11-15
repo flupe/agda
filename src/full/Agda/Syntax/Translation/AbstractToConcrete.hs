@@ -902,7 +902,8 @@ instance ToConcrete A.Expr where
         bracket piBrackets
         $ do a' <- toConcreteCtx ctx a
              b' <- toConcreteTop b
-             let dom = setQuantity (getQuantity a') $ defaultArg $ addRel a' $ mkArg a'
+             -- XXX We set relevance to Relevant in arginfo because we instead use C.Dot or C.DoubleDot
+             let dom = setRelevance Relevant $ setModality (getModality a') $ defaultArg $ addRel a' $ mkArg a'
              return $ C.Fun (getRange i) dom b'
              -- Andreas, 2018-06-14, issue #2513
              -- TODO: print attributes
