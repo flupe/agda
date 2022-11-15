@@ -759,6 +759,7 @@ compareDom cmp0
      | not $ (==)         (getRelevance dom1) (getRelevance dom2) -> errR
      | not $ sameQuantity (getQuantity  dom1) (getQuantity  dom2) -> errQ
      | not $ sameCohesion (getCohesion  dom1) (getCohesion  dom2) -> errC
+     | not $ samePolarity (getModalPolarity dom1) (getModalPolarity dom2) -> __IMPOSSIBLE__
      | not $ domIsFinite dom1 == domIsFinite dom2 -> errF
      | otherwise -> do
       let r = max (getRelevance dom1) (getRelevance dom2)
