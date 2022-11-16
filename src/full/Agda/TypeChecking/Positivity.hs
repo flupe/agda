@@ -466,7 +466,7 @@ instance ComputeOccurrences Term where
         Just (AnArg _ (Just t)) ->
           --let tel = telToList $ theTel t in
           return . Concat $ zipWith (\i o ->
-            let pol = Just $ modalPolarityToOccurrence $ getModalPolarity (t !! i)
+            let pol = Just $ modalPolarityToOccurrence $ modPolarityAnn $ getModalPolarity (t !! i)
             in OccursAs (VarArg pol i) o) [0..] occs
         _ -> return . Concat $ zipWith (\i o ->
               OccursAs (VarArg Nothing i) o) [0..] occs -- treat local variables and arguments as mixed,

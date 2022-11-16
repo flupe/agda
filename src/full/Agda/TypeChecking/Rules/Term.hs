@@ -397,7 +397,7 @@ checkTypedBindings lamOrPi (A.TBind r tac xps e) ret = do
         -- modify the new context entries
         modEnv LamNotPi = workOnTypes
         modEnv _        = id
-        modMod PiNotLam xp = inverseApplyPolarity UnusedPolarity . (if xp then mapRelevance irrToNonStrict else id)
+        modMod PiNotLam xp = inverseApplyPolarity (withStandardLock UnusedPolarity) . (if xp then mapRelevance irrToNonStrict else id)
         modMod _        _  = id
 
 checkTypedBindings lamOrPi (A.TLet _ lbs) ret = do

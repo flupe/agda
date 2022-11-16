@@ -595,6 +595,16 @@ instance EmbPrj ModalPolarity where
   value 4 = return MixedPolarity
   value _ = malformed
 
+instance EmbPrj PolarityModality where
+  icod_ (PolarityModality p o l) = icod_ (p, o, l)
+
+  value n = do
+    (p, o, l) <- polPair
+    return $ PolarityModality p o l
+    where
+      polPair :: R (ModalPolarity, ModalPolarity, ModalPolarity)
+      polPair = value n
+
 instance EmbPrj Modality where
   icod_ (Modality a b c d) = icodeN' Modality a b c d
 

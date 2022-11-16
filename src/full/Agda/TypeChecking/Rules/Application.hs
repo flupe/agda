@@ -453,12 +453,12 @@ checkQuantity' x def = do
 checkPolarity' :: QName -> Definition -> TCM (Maybe TypeError)
 checkPolarity' x def = do
   let dp = getModalPolarity def
-  p <- asksTC getModalPolarity
+  p <- asksTC $ modPolarityAnn . getModalPolarity
   reportSDoc "tc.mod.pol" 50 $ vcat
     [ "declaration polarity =" <+> text (show dp)
     , "context     polarity =" <+> text (show p)
     ]
-  return $ if (dp `morePolarity` p) then Nothing else Just $ DefinitionHasWrongPolarity x dp
+  return $ if (modPolarityAnn dp `morePolarity` p) then Nothing else Just $ DefinitionHasWrongPolarity x dp
 
 -- | The second argument is the definition of the first.
 checkModality' :: QName -> Definition -> TCM (Maybe TypeError)

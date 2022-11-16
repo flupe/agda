@@ -28,7 +28,7 @@ data Attribute
   | QuantityAttribute  Quantity
   | TacticAttribute Expr
   | CohesionAttribute Cohesion
-  | PolarityAttribute ModalPolarity
+  | PolarityAttribute PolarityModality
   | LockAttribute      Lock
   deriving (Show)
 
@@ -111,13 +111,13 @@ type CohesionAttributes = [(String, Range)]
 
 -- | Modifiers for 'Polarity'.
 
-polarityAttributeTable :: [(String, ModalPolarity)]
+polarityAttributeTable :: [(String, PolarityModality)]
 polarityAttributeTable =
-  [ ("unused" , UnusedPolarity)
-  , ("++" , StrictlyPositive)
-  , ("+" , Positive)
-  , ("-" , Negative)
-  , ("mixed" , MixedPolarity)]
+  [ ("unused" , withStandardLock UnusedPolarity)
+  , ("++" , withStandardLock StrictlyPositive)
+  , ("+" , withStandardLock Positive)
+  , ("-" , withStandardLock Negative)
+  , ("mixed" , withStandardLock MixedPolarity)]
 
 -- | Modifiers for 'Quantity'.
 
@@ -196,7 +196,7 @@ setPristineCohesion c a
 
 -- | Setting 'ModalPolarity' if unset.
 
-setPristinePolarity :: (LensModalPolarity a) => ModalPolarity -> a -> Maybe a
+setPristinePolarity :: (LensModalPolarity a) => PolarityModality -> a -> Maybe a
 setPristinePolarity c a
   | getModalPolarity a == defaultPolarity = Just $ setModalPolarity c a
   | otherwise = Nothing

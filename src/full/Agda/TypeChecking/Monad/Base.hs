@@ -4248,11 +4248,11 @@ data TypeError
         | SplitOnNonEtaRecord QName
         | DefinitionIsIrrelevant QName
         | DefinitionIsErased QName
-        | DefinitionHasWrongPolarity QName ModalPolarity
+        | DefinitionHasWrongPolarity QName PolarityModality
         | VariableIsIrrelevant Name
         | VariableIsErased Name
         | VariableIsOfUnusableCohesion Name Cohesion
-        | VariableIsOfUnusablePolarity Name ModalPolarity
+        | VariableIsOfUnusablePolarity Name PolarityModality
         | UnequalLevel Comparison Level Level
         | UnequalTerms Comparison Term Term CompareAs
         | UnequalTypes Comparison Type Type

@@ -126,7 +126,7 @@ workOnTypes' experimental
      then modifyContextInfo (mapRelevance irrToNonStrict)
      else id)
   . applyQuantityToContext zeroQuantity
-  . applyPolarityToContext UnusedPolarity
+  . applyPolarityToContext (withStandardLock UnusedPolarity)
   . typeLevelReductions
   . localTC (\ e -> e { envWorkingOnTypes = True })
 

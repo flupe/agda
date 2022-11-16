@@ -150,11 +150,15 @@ instance Pretty Cohesion where
   pretty Squash  = "@⊤"
 
 instance Pretty ModalPolarity where
-  pretty UnusedPolarity = "@unused"
-  pretty StrictlyPositive = "@++"
-  pretty Positive = "@+"
-  pretty Negative = "@-"
-  pretty MixedPolarity = mempty
+  pretty p = case p of
+    UnusedPolarity -> "@unused"
+    StrictlyPositive -> "@++"
+    Positive -> "@+"
+    Negative -> "@-"
+    MixedPolarity -> mempty
+
+instance Pretty PolarityModality where
+  pretty (PolarityModality p _ _) = pretty p
 
 instance Pretty Modality where
   pretty mod = hsep

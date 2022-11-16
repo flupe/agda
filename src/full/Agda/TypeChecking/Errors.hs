@@ -1527,6 +1527,15 @@ instance Verbalize ModalPolarity where
       Negative -> "negative"
       MixedPolarity -> "mixed"
 
+instance Verbalize PolarityModality where
+  verbalize (PolarityModality p o l) = concat
+    [ verbalize p
+    , ", originally bound with modality "
+    , verbalize o
+    , " and locked by "
+    , verbalize l
+    ]
+
 instance Verbalize Modality where
   verbalize mod | mod == defaultModality = "default"
   verbalize (Modality rel qnt coh pol) = intercalate "," $

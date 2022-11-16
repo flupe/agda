@@ -300,6 +300,9 @@ instance PrettyTCM Quantity where
 instance PrettyTCM ModalPolarity where
   prettyTCM = pretty
 
+instance PrettyTCM PolarityModality where
+  prettyTCM = pretty
+
 instance PrettyTCM Modality where
   prettyTCM mod = hsep
     [ prettyTCM (getQuantity mod)
