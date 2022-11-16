@@ -386,18 +386,6 @@ data OccEnv = OccEnv
 -- | Monad for computing occurrences.
 type OccM = Reader OccEnv
 
-{-
--- | Returns the actual index of a variable in the outer context
-getVarIndex :: Int -> OccM (Maybe Nat)
-getVarIndex k = do
-  d <- reader depth
-  if d > k then return Nothing
-           else return $ Just (k - d)
--}
--- | Runs a computation under a binder
-underBinder :: OccM a -> OccM a
-underBinder = local (\ e -> e { vars = Nothing : vars e })
-
 instance (Semigroup a, Monoid a) => Monoid (OccM a) where
   mempty  = return mempty
   mappend = (<>)
@@ -593,8 +581,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
 
             -- Occurrences in the types of the constructor arguments.
             vnp <- vars np
-            (OccursAs (ConArgType c) <$> getOccurrences vnp tel1')
-              {-$ do
+            (OccursAs (ConArgType c) <$> getOccurrences vnp tel1') <> do
               -- Occurrences in the indices of the data type the constructor targets.
               -- Andreas, 2020-02-15, issue #4447:
               -- WAS: @t@ is not necessarily a data type, but it could be something
@@ -603,8 +590,8 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
               -- In any case, if @t@ is not showing itself as the data type, we need to
               -- do something conservative.  We will just collect *all* occurrences
               -- and flip their sign (variance) using 'LeftOfArrow'.
-              vst <- vars (size tel)
-              let fallback = OccursAs LeftOfArrow <$> getOccurrences vst t -- NB::Defined but not used
+              vst <- (replicate (size tel1') Nothing ++) <$> vars (size telD)
+              let fallback = OccursAs LeftOfArrow <$> getOccurrences (vst) t -- NB::Defined but not used
               case unEl t of
                 Def q' vs
                   | q == q' -> do
@@ -621,7 +608,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
                 Con{}      -> __IMPOSSIBLE__  -- not a type
                 Level{}    -> __IMPOSSIBLE__  -- not a type
                 DontCare{} -> __IMPOSSIBLE__  -- not a type
-                Dummy{}    -> __IMPOSSIBLE__ -}
+                Dummy{}    -> __IMPOSSIBLE__
       mconcat $ pure ioccs : map conOcc cs
 
     Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c
