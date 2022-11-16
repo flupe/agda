@@ -21,6 +21,8 @@ module Agda.TypeChecking.CheckInternal
   , shouldBeSort
   ) where
 
+import Data.Maybe
+
 import Control.Arrow (first)
 import Control.Monad
 
@@ -38,6 +40,8 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.Modalities (checkModality)
 
 
 import Agda.Utils.Functor (($>))
@@ -45,6 +49,8 @@ import Agda.Utils.Pretty  (prettyShow)
 import Agda.Utils.Size
 
 import Agda.Utils.Impossible
+
+import Agda.Interaction.Options
 
 -- * Bidirectional rechecker
 
@@ -176,12 +182,17 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
   v <- elimViewAction action =<< preAction action t v
   postAction action t =<< case v of
     Var i es   -> do
-      a <- typeOfBV i
+      d <- domOfBV i
+      n <- nameOfBV i
+      if usableModality (getModality d) then return () else typeError $ VariableIsOfUnusablePolarity n (getModalPolarity d)
       reportSDoc "tc.check.internal" 30 $ fsep
-        [ "variable" , prettyTCM (var i) , "has type" , prettyTCM a ]
-      checkSpine action a (Var i []) es cmp t
+        [ "variable" , prettyTCM (var i) , "has type" , prettyTCM (unDom d)
+        , "and modality", pretty (getModality d) ]
+      checkSpine action (unDom d) (Var i []) es cmp t
     Def f es   -> do  -- f is not projection(-like)!
-      a <- defType <$> getConstInfo f
+      def <- getConstInfo f
+      let a = defType def
+      checkModality f def
       checkSpine action a (Def f []) es cmp t
     MetaV x es -> do -- we assume meta instantiations to be well-typed
       a <- metaType x
@@ -200,21 +211,21 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
       return $ Lit l
     Lam ai vb  -> do
       (a, b) <- maybe (shouldBePi t) return =<< isPath t
-      ai <- checkArgInfo action ai $ domInfo a
       let name = suggests [ Suggestion vb , Suggestion b ]
       addContext (name, a) $ do
         Lam ai . Abs (absName vb) <$> checkInternal' action (absBody vb) cmp (absBody b)
     Pi a b     -> do
       s <- shouldBeSort t
       when (s == SizeUniv) $ typeError $ FunctionTypeInSizeUniv v
+      experimental <- optExperimentalIrrelevance <$> pragmaOptions
       let sa  = getSort a
           sb  = getSort (unAbs b)
           mkDom v = El sa v <$ a
           mkRng v = fmap (v <$) b
           -- Preserve NoAbs
-          goInside = case b of Abs{}   -> addContext (absName b, a)
+          goInside = case b of Abs{}   -> addContext (absName b, inverseApplyPolarity (withStandardLock UnusedPolarity) ((if experimental then mapRelevance irrToNonStrict else id) a))
                                NoAbs{} -> id
-      a <- mkDom <$> checkInternal' action (unEl $ unDom a) CmpLeq (sort sa)
+      a <- applyPolarityToContext negativePolarity $ mkDom <$> checkInternal' action (unEl $ unDom a) CmpLeq (sort sa)
       v' <- goInside $ Pi a . mkRng <$> checkInternal' action (unEl $ unAbs b) CmpLeq (sort sb)
       s' <- sortOf v -- Issue #6205: do not use v' since it might not be valid syntax
       compareSort cmp s' s
@@ -294,32 +305,26 @@ checkSpine action a self es cmp t = do
 --  -> m Term    -- ^ The application after modification by the @Action@.
 --checkArgs action a self vs t = checkSpine action a self (map Apply vs) t
 
--- | @checkArgInfo actual expected@.
+-- | @checkHiding actual expected@.
 --
---   The @expected@ 'ArgInfo' comes from the type.
---   The @actual@ 'ArgInfo' comes from the term and can be updated
---   by an action.
-checkArgInfo :: (MonadCheckInternal m) => Action m -> ArgInfo -> ArgInfo -> m ArgInfo
-checkArgInfo action ai ai' = do
-  checkHiding    (getHiding ai)     (getHiding ai')
-  mod <- checkModality action (getModality ai)  (getModality ai')
-  return $ setModality mod ai
-
+--   The @expected@ 'Hiding' comes from the type.
+--   The @actual@ 'Hiding' comes from the term.
 checkHiding    :: (MonadCheckInternal m) => Hiding -> Hiding -> m ()
 checkHiding    h h' = unless (sameHiding h h') $ typeError $ HidingMismatch h h'
 
--- | @checkRelevance action term type@.
---
---   The @term@ 'Relevance' can be updated by the @action@.
-checkModality :: (MonadCheckInternal m) => Action m -> Modality -> Modality -> m Modality
-checkModality action mod mod' = do
-  let (r,r') = (getRelevance mod, getRelevance mod')
-      (q,q') = (getQuantity  mod, getQuantity  mod')
-  unless (sameModality mod mod') $ typeError $ if
-    | not (sameRelevance r r') -> RelevanceMismatch r r'
-    | not (sameQuantity q q')  -> QuantityMismatch  q q'
-    | otherwise -> __IMPOSSIBLE__ -- add more cases when adding new modalities
-  return $ modalityAction action mod' mod  -- Argument order for actions: @type@ @term@
+-- -- | @checkRelevance action term type@.
+-- --
+-- --   The @term@ 'Relevance' can be updated by the @action@.
+-- checkDefModality :: (MonadCheckInternal m) => Action m -> QName -> Modality -> m Modality
+-- checkDefModality action mod = do
+--   let r = getRelevance mod
+--       q = getQuantity mod
+--       p = getModalPolarity mod
+--   unless (sameModality mod mod') $ typeError $ if
+--     | not (sameRelevance r r') -> RelevanceMismatch r r'
+--     | not (sameQuantity q q')  -> QuantityMismatch  q q'
+--     | otherwise -> __IMPOSSIBLE__ -- add more cases when adding new modalities
+--   return $ modalityAction action mod' mod  -- Argument order for actions: @type@ @term@
 
 -- | Infer type of a neutral term.
 infer :: (MonadCheckInternal m) => Term -> m Type
@@ -386,8 +391,8 @@ inferSpine' action t self self' (e : es) = do
       inferSpine' action (b `absApp` r) (self `applyE` [e]) (self' `applyE` [IApply x' y' r']) es
     Apply (Arg ai v) -> do
       (a, b) <- shouldBePi t
-      ai <- checkArgInfo action ai $ domInfo a
-      v' <- checkInternal' action v CmpLeq $ unDom a
+      checkHiding (getHiding ai) (getHiding $ domInfo a)
+      v' <- applyModalityToContext (getModality a) $ checkInternal' action v CmpLeq $ unDom a
       inferSpine' action (b `absApp` v) (self `applyE` [e]) (self' `applyE` [Apply (Arg ai v')]) es
     -- case: projection or projection-like
     Proj o f -> do

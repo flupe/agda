@@ -33,6 +33,7 @@ import Agda.Syntax.Scope.Monad
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Conversion
+import {-# SOURCE #-} Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Generalize
 import Agda.TypeChecking.Implicit
@@ -155,7 +156,9 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   }
 
             escapeContext impossible npars $ do
-              addConstant' name defaultArgInfo name t $ DatatypeDefn dataDef
+              -- Add the constant with unitPolarity == @++ so that the type checker also checks
+              -- for strict positivity
+              addConstant' name (setModalPolarity unitPolarity defaultArgInfo) name t $ DatatypeDefn dataDef
                 -- polarity and argOcc.s determined by the positivity checker
 
             -- Check the types of the constructors
@@ -1791,8 +1794,12 @@ constructs nofPars nofExtraVars t q = constrT nofExtraVars t
             t <- reduce t
             pathV <- pathViewAsPi'whnf
             case unEl t of
-                Pi _ (NoAbs _ b)  -> constrT n b
-                Pi a b            -> underAbstraction a b $ constrT (n + 1)
+                Pi a b@(NoAbs absname r)  -> do
+                  checkInternal (unEl (unDom a)) CmpLeq (sort (getSort a))
+                  constrT n r
+                Pi a b@(Abs absname _)    -> do
+                  checkInternal (unEl (unDom a)) CmpLeq (sort (getSort a))
+                  underAbstraction a b $ constrT (n + 1)
                   -- OR: addCxtString (absName b) a $ constrT (n + 1) (absBody b)
                 _ | Left ((a,b),_) <- pathV t -> do
                       _ <- case b of

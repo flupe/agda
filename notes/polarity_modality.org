@@ -121,7 +121,8 @@ NOTE: ∀ r, (unused \ r) = mixed
 * TODO workOnTypes works properly, but we may want to add the proper pi codomain rule for erasure
 It may be called when checking the type in the domain of a pi type, which might
 not be the proper implementation for the rule wrt. Andreas's paper
-* TODO How do we interpret annotated definitions and which ones do we allow?
+* DONE How do we interpret annotated definitions and which ones do we allow?
+Annotated definitions only mean that the definition should be used in the specific position, so all annotations should be allowed.
 * TODO Add some sort of lock emulation
 ie. remember the original modality and also record the following divisions
 * TODO Make the positivity-checker aware of the annotations
@@ -131,7 +132,9 @@ ie. remember the original modality and also record the following divisions
        The idea is to remember the original modality, and keep track of what it should be divided by
        when we apply the T-VAR rule. Joris is working on it, apparently that's like implementing locks, but
        it shouldn't change the typing rules.
-* TODO Remove left division when eliminating into a term
+
+       Also, should change the uses of =pretty polarity= to =verbalize polarity= for error messages.
+* DONE Remove left division when eliminating into a term
 Only divide when going outside of the copattern, because that translates to going into an application.
 
 Should look at what happens for a simple constant definition with @irr. When does the context get divided by the modality?
