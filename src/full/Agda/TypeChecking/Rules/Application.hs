@@ -450,6 +450,18 @@ checkQuantity' x def = do
 
 -- | The second argument is the definition of the first.
 --   Returns 'Nothing' if ok, otherwise the error message.
+checkCohesion' :: QName -> Definition -> TCM (Maybe TypeError)
+checkCohesion' x def = do
+  let dc = getCohesion def
+  c <- asksTC getCohesion
+  reportSDoc "tc.mod.coh" 50 $ vcat
+    [ "declaration cohesion =" <+> text (show dc)
+    , "context     cohesion =" <+> text (show c)
+    ]
+  return $ if (dc `moreCohesion` c) then Nothing else Just $ DefinitionHasWrongCohesion x dc
+
+-- | The second argument is the definition of the first.
+--   Returns 'Nothing' if ok, otherwise the error message.
 checkPolarity' :: QName -> Definition -> TCM (Maybe TypeError)
 checkPolarity' x def = do
   let dp = getModalPolarity def
@@ -465,7 +477,8 @@ checkModality' :: QName -> Definition -> TCM (Maybe TypeError)
 checkModality' x def = do
   relOk <- checkRelevance' x def
   quantOk <- maybe (checkQuantity' x def) (return . Just) relOk
-  maybe (checkPolarity' x def) (return . Just) quantOk
+  cohOk <- maybe (checkCohesion' x def) (return . Just) quantOk
+  maybe (checkPolarity' x def) (return . Just) cohOk
 
 -- | The second argument is the definition of the first.
 checkModality :: QName -> Definition -> TCM ()
