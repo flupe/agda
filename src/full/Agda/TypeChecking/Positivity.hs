@@ -492,8 +492,8 @@ instance ComputeOccurrences Term where
 
     Con _ _ args -> occurrences args
     MetaV _ args -> OccursAs MetaArg <$> occurrences args
-    Pi a b       -> (OccursAs LeftOfArrow <$> occurrences a) <> underBinder (occurrences b)
-    Lam _ b      -> underBinder $ occurrences b
+    Pi a b       -> (OccursAs LeftOfArrow <$> occurrences a) <> occurrences b
+    Lam _ b      -> occurrences b
     Level l      -> occurrences l
     Lit{}        -> mempty
     Sort{}       -> mempty
