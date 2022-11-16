@@ -678,14 +678,6 @@ instance SemiRing (Edge (Seq OccursWhere)) where
 
   otimes (Edge o1 w1) (Edge o2 w2) = Edge (otimes o1 o2) (w1 DS.>< w2)
 
-modalPolarityToOccurrence :: ModalPolarity -> Occurrence
-modalPolarityToOccurrence = \case
-  UnusedPolarity -> Unused
-  StrictlyPositive -> StrictPos
-  Positive -> JustPos
-  Negative -> JustNeg
-  MixedPolarity -> Mixed
-
 -- | WARNING: There can be lots of sharing between the 'OccursWhere'
 -- entries in the edges. Traversing all of these entries could be
 -- expensive. (See 'computeEdges' for an example.)

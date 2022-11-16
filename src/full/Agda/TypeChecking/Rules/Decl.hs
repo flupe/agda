@@ -65,6 +65,7 @@ import Agda.Termination.TermCheck
 
 import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List (zipWithKeepRest)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -626,11 +627,11 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
       whenM ((> 0) <$> getContextSize) $ do
         typeError $ GenericError $ "We don't like postulated sizes in parametrized modules."
 
+  TelV tel _ <- telView t
   -- Ensure that polarity pragmas do not contain too many occurrences.
   (occs, pols) <- case mp of
     Nothing   -> return ([], [])
-    Just occs -> do
-      TelV tel _ <- telView t
+    Just occs -> do      
       let n = length (telToList tel)
       when (n < length occs) $
         typeError $ TooManyPolarities x n
@@ -640,6 +641,10 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
         prettyShow occs ++ "\n  " ++ prettyShow pols
       return (occs, pols)
 
+  let occs' = fmap (modalPolarityToOccurrence . modPolarityAnn . getModalPolarity) $ telToList tel
+  let finalOccs = zipWithKeepRest ojoin occs occs'
+        -- ^ compute most restrictive polarity, out of info from polarity pragma, and user 
+  
 
   -- Set blocking tag to MissingClauses if we still expect clauses
   let blk = case kind of
@@ -663,7 +668,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
 
   addConstant x =<< do
     useTerPragma $ defn
-        { defArgOccurrences    = occs
+        { defArgOccurrences    = finalOccs
         , defPolarity          = pols
         , defGeneralizedParams = genParams
         , defBlocked           = blk
