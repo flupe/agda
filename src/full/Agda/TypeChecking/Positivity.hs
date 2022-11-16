@@ -512,7 +512,7 @@ instance ComputeOccurrences Type where
 
 instance ComputeOccurrences a => ComputeOccurrences (Tele a) where
   occurrences EmptyTel        = mempty
-  occurrences (ExtendTel a b) = occurrences a <> underBinder (occurrences b)
+  occurrences (ExtendTel a b) = occurrences a <> occurrences b
 
 instance ComputeOccurrences a => ComputeOccurrences (Abs a) where
   occurrences (Abs   _ b) = withExtendedOccEnv Nothing $ occurrences b
