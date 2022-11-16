@@ -1568,11 +1568,11 @@ instance PartialOrd ModalPolarity where
   comparable StrictlyPositive Positive = POGT
   comparable _ _ = __IMPOSSIBLE__
 
--- | @morePolarity x y@ is True whenever a variable of polarity x can be
+-- | @morePolarity' x y@ is True whenever a variable of polarity x can be
 --   used anywhere where a variable of polarity y is expected.
---   Note that @morePolarity x y@ actually means x <= y.
-morePolarity :: ModalPolarity -> ModalPolarity -> Bool
-morePolarity x y = case comparable x y of
+--   Note that @morePolarity' x y@ actually means x <= y.
+morePolarity' :: ModalPolarity -> ModalPolarity -> Bool
+morePolarity' x y = case comparable x y of
   POLT -> True
   POLE -> True
   POEQ -> True
@@ -1580,7 +1580,7 @@ morePolarity x y = case comparable x y of
 
 -- | @splittablePolarity pol == False@ iff we cannot split on a variable of @pol@.
 splittablePolarity :: LensModalPolarity a => a -> Bool
-splittablePolarity a = modPolarityAnn (getModalPolarity a) `morePolarity` MixedPolarity
+splittablePolarity a = modPolarityAnn (getModalPolarity a) `morePolarity'` MixedPolarity
 
 -- | 'ModalPolarity' composition.
 --   'UnusedPolarity' is dominant, 'StrictlyPositive' is neutral.
@@ -1599,9 +1599,9 @@ composePolarity' p p' =
 
 -- | @inverseComposePolarity r x@ returns the least @y@
 --   such that forall @x@, @y@ we have
---   @x \`morePolarity\` (r \`composePolarity\` y)@
+--   @x \`morePolarity'\` (r \`composePolarity\` y)@
 --   iff
---   @(r \`inverseComposePolarity\` x) \`morePolarity\` y@ (Galois connection).
+--   @(r \`inverseComposePolarity\` x) \`morePolarity'\` y@ (Galois connection).
 inverseComposePolarity' :: ModalPolarity -> ModalPolarity -> ModalPolarity
 inverseComposePolarity' p x =
   case (p, x) of
@@ -1682,9 +1682,12 @@ instance LensModalPolarity PolarityModality where
 samePolarity :: PolarityModality -> PolarityModality -> Bool
 samePolarity (PolarityModality p _ _) (PolarityModality p' _ _) = p == p'
 
+morePolarity :: PolarityModality -> PolarityModality -> Bool
+morePolarity (PolarityModality p _ _) (PolarityModality p' _ _) = morePolarity' p p'
+
 -- | @usablePolarity pol == False@ iff we cannot use a variable of @pol@.
 usablePolarity :: LensModalPolarity a => a -> Bool
-usablePolarity a = modPolarityAnn pol `morePolarity` StrictlyPositive
+usablePolarity a = modPolarityAnn pol `morePolarity'` StrictlyPositive
   where
     pol = getModalPolarity a
 
@@ -1702,9 +1705,9 @@ applyPolarity pol = mapModalPolarity (pol `composePolarity`)
 
 -- | @inverseComposePolarity r x@ returns the least @y@
 --   such that forall @x@, @y@ we have
---   @x \`morePolarity\` (r \`composePolarity\` y)@
+--   @x \`morePolarity'\` (r \`composePolarity\` y)@
 --   iff
---   @(r \`inverseComposePolarity\` x) \`morePolarity\` y@ (Galois connection).
+--   @(r \`inverseComposePolarity\` x) \`morePolarity'\` y@ (Galois connection).
 inverseComposePolarity :: PolarityModality -> PolarityModality -> PolarityModality
 inverseComposePolarity (PolarityModality p o l) (PolarityModality p' o' l') =
   PolarityModality (inverseComposePolarity' p p') o' (composePolarity' l' p)
