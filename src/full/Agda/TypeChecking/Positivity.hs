@@ -455,7 +455,7 @@ instance ComputeOccurrences Clause where
         where
           ixs = map dbPatVarIndex $ lefts $ map unArg $ patternVars $ namedThing <$> p
 
-          makeEntry x = singleton (x, Just $ AnArg i undefined) -- TODO(flupe)
+          makeEntry x = singleton (x, Just $ AnArg i Nothing) -- TODO(flupe)
 
 instance ComputeOccurrences Term where
   occurrences v = case unSpine v of
