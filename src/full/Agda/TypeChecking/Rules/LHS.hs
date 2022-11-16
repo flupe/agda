@@ -669,7 +669,7 @@ checkLeftHandSide :: forall a.
      -- ^ The name of the definition we are checking.
   -> [NamedArg A.Pattern]
      -- ^ The patterns.
-  -> Type
+  -> Arg Type
      -- ^ The expected type @a = Γ → b@.
   -> Maybe Substitution
      -- ^ Module parameter substitution from with-abstraction.
@@ -722,7 +722,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
           -- implement the substitution T[y/x], we use an actual
           -- transport. See #5448.
 
-        arity_a <- arityPiPath a
+        arity_a <- arityPiPath (unArg a)
         -- Compute substitution from the out patterns @qs0@
         let notProj ProjP{} = False
             notProj _       = True
@@ -812,6 +812,7 @@ checkLeftHandSide call f ps a withSub' strippedPats =
         reportSDoc "tc.lhs.top" 20 $ nest 2 $ "weakSub  = " <+> pretty weakSub
         reportSDoc "tc.lhs.top" 20 $ nest 2 $ "patSub   = " <+> pretty patSub
         reportSDoc "tc.lhs.top" 20 $ nest 2 $ "paramSub = " <+> pretty paramSub
+        reportSDoc "tc.lhs.top" 20 $ nest 2 $ "current judgment modality = " <+> (pretty =<< asksTC getModality)
 
         newCxt <- computeLHSContext vars delta
 
@@ -960,8 +961,11 @@ checkLHS mf = updateModality checkLHS_ where
       let m = getModality target
       reportSDoc "tc.lhs" 40 $ vcat
         [ "while eliminating into" <+> addContext tel (prettyTCM target)
-        , "applying modality '" <+> pretty m <+> "' to context" <+> (prettyTCM =<< getContext)]
+        , "applying modality '" <+> pretty m <+> "' to context" <+> (prettyTCM =<< getContext)
+        , "currently, judgment modality is " <+> (pretty =<< (asksTC getModality)) ]
       applyModalityToContext m $ do
+        reportSDoc "tc.lhs" 40 $ vcat
+          [ "now " <+> (pretty =<< asksTC getModality)]
         cont st
         -- Andreas, 2018-10-23, issue #3309
         -- the modalities in the clause telescope also need updating.

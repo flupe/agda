@@ -272,8 +272,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         cs <- traceCall NoHighlighting $ do -- To avoid flicker.
           forM (zip cs [0..]) $ \ (c, clauseNo) -> do
             atClause name clauseNo t withSub c $ do
-              (c,b) <- applyModalityToContextFunBody ai $ do
-                checkClause t withSub c
+              (c,b) <- checkClause (Arg ai t) withSub c
               -- Andreas, 2013-11-23 do not solve size constraints here yet
               -- in case we are checking the body of an extended lambda.
               -- 2014-04-24: The size solver requires each clause to be
@@ -322,6 +321,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs = do
         -- Needed to calculate the proper fullType below.
         -- Also: issue #4173, allow splitting on erased arguments in erased definitions
         -- in the coverage checker.
+        -- XXX
         applyCohesionToContext ai $ applyQuantityToContext ai $ do
 
         -- Systems have their own coverage and "coherence" check, we
@@ -659,22 +659,22 @@ instance Monoid ClausesPostChecks where
   mappend = (<>)
 
 -- | The LHS part of checkClause.
-checkClauseLHS :: Type -> Maybe Substitution -> A.SpineClause -> (LHSResult -> TCM a) -> TCM a
+checkClauseLHS :: Arg Type -> Maybe Substitution -> A.SpineClause -> (LHSResult -> TCM a) -> TCM a
 checkClauseLHS t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh catchall) ret = do
     reportSDoc "tc.lhs.top" 30 $ "Checking clause" $$ prettyA c
     unlessNull (trailingWithPatterns aps) $ \ withPats -> do
       typeError $ UnexpectedWithPatterns $ map namedArg withPats
-    traceCall (CheckClause t c) $ do
+    traceCall (CheckClause (unArg t) c) $ do
       aps <- expandPatternSynonyms aps
       unless (null strippedPats) $ reportSDoc "tc.lhs.top" 50 $
         "strippedPats:" <+> vcat [ prettyA p <+> "=" <+> prettyTCM v <+> ":" <+> prettyTCM a | A.ProblemEq p v a <- strippedPats ]
-      closed_t <- flip abstract t <$> getContextTelescope
+--      closed_t <- flip abstract t <$> getContextTelescope
       checkLeftHandSide (CheckLHS lhs) (Just x) aps t withSub strippedPats ret
 
 -- | Type check a function clause.
 
 checkClause
-  :: Type          -- ^ Type of function defined by this clause.
+  :: Arg Type          -- ^ Type of function defined by this clause.
   -> Maybe Substitution  -- ^ Module parameter substitution arising from with-abstraction.
   -> A.SpineClause -- ^ Clause.
   -> TCM (Clause,ClausesPostChecks)  -- ^ Type-checked clause
@@ -689,10 +689,10 @@ checkClause t withSub c@(A.Clause lhs@(A.SpineLHS i x aps) strippedPats rhs0 wh 
         -- type. If we're checking a with-function that's already the case,
         -- otherwise we need to abstract over the module telescope.
         t' <- case withSub of
-                Just{}  -> return t
+                Just{}  -> return (unArg t)
                 Nothing -> do
                   theta <- lookupSection (qnameModule x)
-                  return $ abstract theta t
+                  return $ abstract theta (unArg t)
 
         -- At this point we should update the named dots potential with-clauses
         -- in the right-hand side. When checking a clause we expect the named
