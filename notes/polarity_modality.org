@@ -135,3 +135,25 @@ ie. remember the original modality and also record the following divisions
 Only divide when going outside of the copattern, because that translates to going into an application.
 
 Should look at what happens for a simple constant definition with @irr. When does the context get divided by the modality?
+* TODO Module parameters
+Apparently ok, but very counter intuitive.  Also happens for cohesion
+#+begin_src agda2
+  postulate bad : @♭ Nat → Nat
+
+  module _ (a : Nat) where
+    @♭ f : Nat
+    f = 0
+
+    g : Nat
+    g = bad f
+
+  module _ (a : Nat) where
+    @♭ f' : Nat
+    f' = 0
+
+  g' : (a : Nat) → Nat
+  g' x = bad (f x)
+#+end_src
+* TODO Check that eliminating a pattern only applies modality to the telescope it binds
+And not to the whole telescope ie. =(snd (f x)) y=
+* TODO Implement pattern matching when there's only one possible constructor
