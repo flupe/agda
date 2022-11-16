@@ -555,8 +555,9 @@ instance PrettyTCM TypeError where
     DefinitionIsErased x -> fsep $
       "Identifier" : prettyTCM x : pwords "is declared erased, so it cannot be used here"
 
-    DefinitionHasWrongPolarity x p -> fsep $
-      "Identifier" : prettyTCM x : "is declared with polarity" : text (show p) : pwords ", so it cannot be used here"
+    DefinitionHasWrongPolarity x p l -> fsep $
+      "Identifier" : prettyTCM x : "is declared with" : text (verbalize p) : pwords "polarity, so it cannot be used here at" ++
+      [text (verbalize (Indefinite l)), "position"]
 
     VariableIsIrrelevant x -> fsep $
       "Variable" : prettyTCM (nameConcrete x) : pwords "is declared irrelevant, so it cannot be used here"
@@ -567,8 +568,11 @@ instance PrettyTCM TypeError where
     VariableIsOfUnusableCohesion x c -> fsep
       ["Variable", prettyTCM (nameConcrete x), "is declared", text (show c), "so it cannot be used here"]
 
-    VariableIsOfUnusablePolarity x c -> fsep
-      ["Variable", prettyTCM (nameConcrete x), "can only be used in", text (show c), "position so it cannot be used here"]
+    VariableIsOfUnusablePolarity x c -> fsep $
+      ["Variable", prettyTCM (nameConcrete x), "is bound with", text (verbalize p)] ++  pwords "polarity, so it cannot be used here at" ++
+      [text (verbalize (Indefinite l)), "position"]
+      where
+        PolarityModality _ p l = c
 
     UnequalBecauseOfUniverseConflict cmp s t -> fsep $
       [prettyTCM s, notCmp cmp, prettyTCM t, "because this would result in an invalid use of Setω" ]
@@ -1528,13 +1532,7 @@ instance Verbalize ModalPolarity where
       MixedPolarity -> "mixed"
 
 instance Verbalize PolarityModality where
-  verbalize (PolarityModality p o l) = concat
-    [ verbalize p
-    , ", originally bound with modality "
-    , verbalize o
-    , " and locked by "
-    , verbalize l
-    ]
+  verbalize (PolarityModality p o l) = verbalize p
 
 instance Verbalize Modality where
   verbalize mod | mod == defaultModality = "default"

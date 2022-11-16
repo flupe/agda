@@ -4248,7 +4248,7 @@ data TypeError
         | SplitOnNonEtaRecord QName
         | DefinitionIsIrrelevant QName
         | DefinitionIsErased QName
-        | DefinitionHasWrongPolarity QName PolarityModality
+        | DefinitionHasWrongPolarity QName PolarityModality PolarityModality
         | VariableIsIrrelevant Name
         | VariableIsErased Name
         | VariableIsOfUnusableCohesion Name Cohesion
