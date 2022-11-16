@@ -459,7 +459,8 @@ instance ComputeOccurrences Clause where
 
 instance ComputeOccurrences Term where
   occurrences v = case unSpine v of
-    Var i args -> do-- (asks (occI . vars)) <> (OccursAs VarArg _ <$> occurrences args)
+    Var i args ->
+      (asks (occI . vars)) <> do
       occs <- mapM occurrences args
       item <- reader ((!! i) . vars)
       case item of
@@ -470,15 +471,15 @@ instance ComputeOccurrences Term where
             in OccursAs (VarArg pol i) o) [0..] occs
         _ -> return . Concat $ zipWith (\i o ->
               OccursAs (VarArg Nothing i) o) [0..] occs -- treat local variables and arguments as mixed,
-                                                          -- because we have no reliable way to get their type
+                                                        -- because we have no reliable way to get their type
             -- TODO(flupe): also keep track of the variable itself, if we need to account for it or not
             -- as was the case below
           
-      -- where
-      -- occI vars = maybe mempty OccursHere $ indexWithDefault unbound vars i
-      -- unbound = flip trace __IMPOSSIBLE__ $
-      --         "impossible: occurrence of de Bruijn index " ++ show i ++
-      --         " in vars " ++ show vars ++ " is unbound"
+      where
+        occI vars = maybe mempty OccursHere $ indexWithDefault unbound vars i
+        unbound = flip trace __IMPOSSIBLE__ $
+              "impossible: occurrence of de Bruijn index " ++ show i ++
+              " in vars " ++ show vars ++ " is unbound"
 
     Def d args   -> do
       inf <- asks inf
