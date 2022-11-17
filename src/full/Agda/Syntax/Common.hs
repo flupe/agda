@@ -1636,7 +1636,10 @@ data PolarityModality = PolarityModality
   { modPolarityAnn :: ModalPolarity    -- ^ The actual polarity of the variable
   , modPolarityOrigin :: ModalPolarity -- ^ The original polarity annotation by the user
   , modPolarityLock :: ModalPolarity   -- ^ The locks of the variable (= composition of all denominators the variable has been left divided by)
-  } deriving (Show, Ord, Eq, Bounded, Generic)
+  } deriving (Show, Ord, Bounded, Generic)
+
+instance Eq PolarityModality where
+  (PolarityModality p o l) == (PolarityModality p' o' l') = p == p'
 
 withStandardLock :: ModalPolarity -> PolarityModality
 withStandardLock p = PolarityModality p p StrictlyPositive
