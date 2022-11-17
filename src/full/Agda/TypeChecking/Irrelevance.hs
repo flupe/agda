@@ -436,7 +436,8 @@ instance UsableModality Term where
     Pi a b   -> usableMod domMod (unEl $ unDom a) `and2M` usableModAbs (getArgInfo a) mod (unEl <$> b)
       where
         domMod = mapQuantity (composeQuantity $ getQuantity a) $
-                 mapCohesion (composeCohesion $ getCohesion a) mod
+                 mapCohesion (composeCohesion $ getCohesion a) $
+                 mapModalPolarity (composePolarity $ getModalPolarity a) mod
     -- Andrea 15/10/2020 not updating these cases yet, but they are quite suspicious,
     -- do we have special typing rules for Sort and Level?
     Sort s   -> usableMod mod s
