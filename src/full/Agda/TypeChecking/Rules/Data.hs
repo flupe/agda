@@ -1735,9 +1735,6 @@ fitsIn uc forceds t s = do
   -- noConstraints $ s' `leqSort` s
 
   withoutK <- withoutKOption
-  when withoutK $ do
-    q <- viewTC eQuantity
-    workOnTypes $ usableAtModality' (Just s) ConstructorType (setQuantity q unitModality) (unEl t)
 
   fitsIn' withoutK forceds t s
   where
