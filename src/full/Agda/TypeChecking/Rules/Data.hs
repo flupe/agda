@@ -1748,6 +1748,7 @@ fitsIn uc forceds t s = do
                     _              -> Nothing
     case vt of
       Just (isPath, dom, b) -> do
+        checkInternal (unEl (unDom dom)) CmpLeq (sort (getSort dom))
         let (forced,forceds') = nextIsForced forceds
         unless (isForced forced && not withoutK) $ do
           sa <- reduce $ getSort dom
@@ -1791,12 +1792,8 @@ constructs nofPars nofExtraVars t q = constrT nofExtraVars t
             t <- reduce t
             pathV <- pathViewAsPi'whnf
             case unEl t of
-                Pi a b@(NoAbs absname r)  -> do
-                  checkInternal (unEl (unDom a)) CmpLeq (sort (getSort a))
-                  constrT n r
-                Pi a b@(Abs absname _)    -> do
-                  checkInternal (unEl (unDom a)) CmpLeq (sort (getSort a))
-                  underAbstraction a b $ constrT (n + 1)
+                Pi a b@(NoAbs absname r)  -> constrT n r
+                Pi a b@(Abs absname _)    -> underAbstraction a b $ constrT (n + 1)
                   -- OR: addCxtString (absName b) a $ constrT (n + 1) (absBody b)
                 _ | Left ((a,b),_) <- pathV t -> do
                       _ <- case b of
