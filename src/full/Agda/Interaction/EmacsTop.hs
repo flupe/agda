@@ -339,17 +339,23 @@ prettyResponseContext ii rev ctx = withInteractionId ii $ do
         -- Some attributes are useful to report whenever they are not
         -- in the default state.
         attribute :: String
-        attribute =
-          if argumentMod /= defaultModality then
-            "@(" ++ verbalize argumentMod ++ ") "
-          else ""
-          where argumentMod = getModality ai
+        attribute = c ++ if null c then "" else " "
+          where c = prettyShow (getCohesion ai)
+
+        pol :: ModalPolarity
+        pol = modPolarityAnn $ getModalPolarity ai
 
         extras :: [Doc]
         extras = concat $
-          [ [ "not in scope" | isInScope nis == C.NotInScope ]
+          [ [ "not in scope"       | isInScope nis == C.NotInScope ]
+            -- Print erased if hypothesis is erased but goal is non-erased.
+          , [ "erased"             | not $ getQuantity ai `moreQuantity` getQuantity mod ]
+            -- Print irrelevant if hypothesis is strictly less relevant than goal.
+          , [ "irrelevant"         | not $ getRelevance ai `moreRelevant` getRelevance mod ]
             -- Print instance if variable is considered by instance search
-          , [ "instance"     | isInstance ai ]
+          , [ "instance"           | isInstance ai ]
+            -- Print variable polarity if it is other than mixed (default).
+          , [ text $ verbalize pol | not $ pol == MixedPolarity ]
           ]
       ty <- prettyATop expr
       maybeVal <- traverse prettyATop letv
