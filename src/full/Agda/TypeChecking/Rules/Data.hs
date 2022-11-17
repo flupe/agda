@@ -1737,7 +1737,7 @@ fitsIn uc forceds t s = do
   withoutK <- withoutKOption
   when withoutK $ do
     q <- viewTC eQuantity
-    usableAtModality' (Just s) ConstructorType (setQuantity q defaultModality) (unEl t)
+    workOnTypes $ usableAtModality' (Just s) ConstructorType (setQuantity q unitModality) (unEl t)
 
   fitsIn' withoutK forceds t s
   where
