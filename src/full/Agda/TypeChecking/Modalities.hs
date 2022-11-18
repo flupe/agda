@@ -4,6 +4,7 @@ module Agda.TypeChecking.Modalities
   ) where
 
 import Control.Monad.Except
+import Control.Applicative ((<|>))
 
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -35,7 +36,7 @@ checkRelevance' x def = do
           [ "declaration relevance =" <+> text (show drel)
           , "context     relevance =" <+> text (show rel)
           ]
-        return $ if (drel `moreRelevant` rel) then Nothing else Just $ DefinitionIsIrrelevant x
+        return $ boolToMaybe (drel `moreRelevant` rel) $ DefinitionIsIrrelevant x
   where
   needIrrProj = Just . GenericDocError <$> do
     sep [ "Projection " , prettyTCM x, " is irrelevant."
@@ -59,7 +60,7 @@ checkQuantity' x def = do
         [ "declaration quantity =" <+> text (show dq)
         , "context     quantity =" <+> text (show q)
         ]
-      return $ if (dq `moreQuantity` q) then Nothing else Just $ DefinitionIsErased x
+      return $ boolToMaybe (dq `moreQuantity` q) $ DefinitionIsErased x
 
 -- | The second argument is the definition of the first.
 --   Returns 'Nothing' if ok, otherwise the error message.
@@ -71,30 +72,29 @@ checkCohesion' x def = do
     [ "declaration cohesion =" <+> text (show dc)
     , "context     cohesion =" <+> text (show c)
     ]
-  return $ if (dc `moreCohesion` c) then Nothing else Just $ DefinitionHasWrongCohesion x dc
+  return $ boolToMaybe (dc `moreCohesion` c) $ DefinitionHasWrongCohesion x dc
 
 -- | The second argument is the definition of the first.
 --   Returns 'Nothing' if ok, otherwise the error message.
 checkPolarity' :: (MonadConversion m) => QName -> Definition -> m (Maybe TypeError)
 checkPolarity' x def = do
   let dp = getModalPolarity def
-  p <- asksTC $ getModalPolarity
+  p <- asksTC getModalPolarity
   reportSDoc "tc.mod.pol" 50 $ vcat
     [ "declaration polarity =" <+> text (show dp)
     , "context     polarity =" <+> text (show p)
     ]
-  return $ if (dp `morePolarity` p) then Nothing else Just $ DefinitionHasWrongPolarity x dp p
+  return $ boolToMaybe (dp `morePolarity` p) $ DefinitionHasWrongPolarity x dp p
 
 -- | The second argument is the definition of the first.
 checkModality' :: (MonadConversion m) => QName -> Definition -> m (Maybe TypeError)
 checkModality' x def = do
   relOk <- checkRelevance' x def
-  quantOk <- maybe (checkQuantity' x def) (return . Just) relOk
-  cohOk <- maybe (checkCohesion' x def) (return . Just) quantOk
-  maybe (checkPolarity' x def) (return . Just) cohOk
+  qtyOk <- checkQuantity' x def
+  cohOk <- checkCohesion' x def
+  polOk <- checkPolarity' x def
+  return $ relOk <|> qtyOk <|> cohOk <|> polOk
 
 -- | The second argument is the definition of the first.
 checkModality :: (MonadConversion m) => QName -> Definition -> m ()
-checkModality x def = justToError $ checkModality' x def
-  where
-  justToError m = maybe (return ()) typeError =<< m
+checkModality x def = checkModality' x def >>= mapM_ typeError
