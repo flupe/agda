@@ -627,24 +627,33 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
       whenM ((> 0) <$> getContextSize) $ do
         typeError $ GenericError $ "We don't like postulated sizes in parametrized modules."
 
+  -- TODO(flupe): check whether the telescope includes module parameters and whether do drop those
   TelV tel _ <- telView t
-  -- Ensure that polarity pragmas do not contain too many occurrences.
+
+  -- Retrieve polarity modalities given explicitely in type annotations
+  let occs' = modalPolarityToOccurrence . modPolarityAnn . getModalPolarity <$> telToList tel
+
+  reportSLn "tc.polarity.annotations" 10 $
+    prettyShow x ++ " has been assigned polarities through type annotations:\n  " ++ prettyShow occs'
+
   (occs, pols) <- case mp of
-    Nothing   -> return ([], [])
-    Just occs -> do      
+    Nothing   ->
+      -- If no polarities given with a POLARITY pragma, we use the ones coming from explicit polarity annotations
+      return (occs', map polFromOcc occs')
+    Just occs -> do
+      -- If any polarity retrieved from the type is not Mixed, it means an explicit
+      -- annotation was given, so we throw an error because the pragma shouldn't be used
+      when (any (/= Mixed) occs') $ typeError (ExplicitPolarityVsPragma x)
+
+      -- Ensure that polarity pragmas do not contain too many occurrences.
       let n = length (telToList tel)
-      when (n < length occs) $
-        typeError $ TooManyPolarities x n
+      when (n < length occs) $ typeError (TooManyPolarities x n)
+
       let pols = map polFromOcc occs
       reportSLn "tc.polarity.pragma" 10 $
         "Setting occurrences and polarity for " ++ prettyShow x ++ ":\n  " ++
         prettyShow occs ++ "\n  " ++ prettyShow pols
       return (occs, pols)
-
-  let occs' = fmap (modalPolarityToOccurrence . modPolarityAnn . getModalPolarity) $ telToList tel
-  let finalOccs = zipWithKeepRest ojoin occs occs'
-        -- ^ compute most restrictive polarity, out of info from polarity pragma, and user 
-  
 
   -- Set blocking tag to MissingClauses if we still expect clauses
   let blk = case kind of
@@ -668,7 +677,7 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
 
   addConstant x =<< do
     useTerPragma $ defn
-        { defArgOccurrences    = finalOccs
+        { defArgOccurrences    = occs
         , defPolarity          = pols
         , defGeneralizedParams = genParams
         , defBlocked           = blk

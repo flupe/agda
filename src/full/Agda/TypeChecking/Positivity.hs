@@ -376,8 +376,6 @@ data OccEnv = OccEnv
     --   @'genericReplicate' n 'Nothing' ++ 'map' ('Just' . 'AnArg') is@,
     --   for some @n@ and @is@, where @is@ is decreasing
     --   (non-strictly).
---  , depth :: Int
-    -- ^ Number of locally bound variables
   , inf   :: Maybe QName
     -- ^ Name for ∞ builtin.
   }
