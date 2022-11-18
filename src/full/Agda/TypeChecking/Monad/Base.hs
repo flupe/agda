@@ -4453,6 +4453,7 @@ data TypeError
         | GeneralizeNotSupportedHere A.QName
         | MultipleFixityDecls [(C.Name, [Fixity'])]
         | MultiplePolarityPragmas [C.Name]
+        | ExplicitPolarityVsPragma QName
     -- Concrete to Abstract errors
         | NotAModuleExpr C.Expr
             -- ^ The expr was used in the right hand side of an implicit module
