@@ -36,7 +36,7 @@ checkRelevance' x def = do
           [ "declaration relevance =" <+> text (show drel)
           , "context     relevance =" <+> text (show rel)
           ]
-        return $ boolToMaybe (drel `moreRelevant` rel) $ DefinitionIsIrrelevant x
+        return $ boolToMaybe (not $ drel `moreRelevant` rel) $ DefinitionIsIrrelevant x
   where
   needIrrProj = Just . GenericDocError <$> do
     sep [ "Projection " , prettyTCM x, " is irrelevant."
@@ -60,7 +60,7 @@ checkQuantity' x def = do
         [ "declaration quantity =" <+> text (show dq)
         , "context     quantity =" <+> text (show q)
         ]
-      return $ boolToMaybe (dq `moreQuantity` q) $ DefinitionIsErased x
+      return $ boolToMaybe (not $ dq `moreQuantity` q) $ DefinitionIsErased x
 
 -- | The second argument is the definition of the first.
 --   Returns 'Nothing' if ok, otherwise the error message.
@@ -72,7 +72,7 @@ checkCohesion' x def = do
     [ "declaration cohesion =" <+> text (show dc)
     , "context     cohesion =" <+> text (show c)
     ]
-  return $ boolToMaybe (dc `moreCohesion` c) $ DefinitionHasWrongCohesion x dc
+  return $ boolToMaybe (not $ dc `moreCohesion` c) $ DefinitionHasWrongCohesion x dc
 
 -- | The second argument is the definition of the first.
 --   Returns 'Nothing' if ok, otherwise the error message.
@@ -84,7 +84,7 @@ checkPolarity' x def = do
     [ "declaration polarity =" <+> text (show dp)
     , "context     polarity =" <+> text (show p)
     ]
-  return $ boolToMaybe (dp `morePolarity` p) $ DefinitionHasWrongPolarity x dp p
+  return $ boolToMaybe (not $ dp `morePolarity` p) $ DefinitionHasWrongPolarity x dp p
 
 -- | The second argument is the definition of the first.
 checkModality' :: (MonadConversion m) => QName -> Definition -> m (Maybe TypeError)
