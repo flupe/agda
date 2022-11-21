@@ -45,6 +45,7 @@ import Agda.TypeChecking.Modalities (checkModality)
 
 
 import Agda.Utils.Functor (($>))
+import Agda.Utils.Monad (unlessM)
 import Agda.Utils.Pretty  (prettyShow)
 import Agda.Utils.Size
 
@@ -184,7 +185,21 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
     Var i es   -> do
       d <- domOfBV i
       n <- nameOfBV i
-      if usableModality (getModality d) then return () else typeError $ VariableIsOfUnusablePolarity n (getModalPolarity d)
+
+      -- NOTE(flupe): doing the same checks as in Rules/Applications.hs
+      -- TODO(flupe): refactor both away
+      unless (usableRelevance d) $ typeError (VariableIsIrrelevant n)
+
+      unlessM ((getQuantity d `moreQuantity`) <$> asksTC getQuantity) $
+        typeError $ VariableIsErased n
+
+      unless (usableCohesion d) $
+        typeError $ VariableIsOfUnusableCohesion n (getCohesion d)
+
+      unless (usablePolarity d) $
+        typeError $ VariableIsOfUnusablePolarity n (getModalPolarity d)
+
+      -- if usableModality (getModality d) then return () else typeError $ VariableIsOfUnusablePolarity n (getModalPolarity d)
       reportSDoc "tc.check.internal" 30 $ fsep
         [ "variable" , prettyTCM (var i) , "has type" , prettyTCM (unDom d)
         , "and modality", pretty (getModality d) ]

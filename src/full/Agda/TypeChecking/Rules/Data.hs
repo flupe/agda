@@ -1736,7 +1736,8 @@ fitsIn uc forceds t s = do
 
   withoutK <- withoutKOption
 
-  fitsIn' withoutK forceds t s
+  -- NOTE(flupe): we add workOnTypes for irrelevance to work properly
+  workOnTypes $ fitsIn' withoutK forceds t s
   where
   fitsIn' withoutK forceds t s = do
     vt <- do
@@ -1748,6 +1749,8 @@ fitsIn uc forceds t s = do
                     _              -> Nothing
     case vt of
       Just (isPath, dom, b) -> do
+        -- NOTE(flupe): we re-check the type of the constructor argument with the right
+        -- polarity annotations in context.
         checkInternal (unEl (unDom dom)) CmpLeq (sort (getSort dom))
         let (forced,forceds') = nextIsForced forceds
         unless (isForced forced && not withoutK) $ do
