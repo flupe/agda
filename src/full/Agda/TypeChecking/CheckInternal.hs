@@ -41,7 +41,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Irrelevance
-import Agda.TypeChecking.Modalities (checkModality)
+import Agda.TypeChecking.Modalities (checkPolarity')
 
 
 import Agda.Utils.Functor (($>))
@@ -186,20 +186,21 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
       d <- domOfBV i
       n <- nameOfBV i
 
-      -- NOTE(flupe): doing the same checks as in Rules/Applications.hs
-      -- TODO(flupe): refactor both away
-      unless (usableRelevance d) $ typeError (VariableIsIrrelevant n)
+      -- NOTE(flupe):
+      -- For now we only check if polarities are respected.
+      -- In the future we SHOULD also be doing the same checks for every modality, as in Rules/Applications.hs
+      -- (commented below)
+      -- but this will break stuff that is allowed right now
 
-      unlessM ((getQuantity d `moreQuantity`) <$> asksTC getQuantity) $
-        typeError $ VariableIsErased n
-
-      unless (usableCohesion d) $
-        typeError $ VariableIsOfUnusableCohesion n (getCohesion d)
+      -- unless (usableRelevance d) $ typeError (VariableIsIrrelevant n)
+      -- unlessM ((getQuantity d `moreQuantity`) <$> asksTC getQuantity) $
+      --   typeError $ VariableIsErased n
+      -- unless (usableCohesion d) $
+      --   typeError $ VariableIsOfUnusableCohesion n (getCohesion d)
 
       unless (usablePolarity d) $
         typeError $ VariableIsOfUnusablePolarity n (getModalPolarity d)
 
-      -- if usableModality (getModality d) then return () else typeError $ VariableIsOfUnusablePolarity n (getModalPolarity d)
       reportSDoc "tc.check.internal" 30 $ fsep
         [ "variable" , prettyTCM (var i) , "has type" , prettyTCM (unDom d)
         , "and modality", pretty (getModality d) ]
@@ -207,7 +208,9 @@ checkInternal' action v cmp t = verboseBracket "tc.check.internal" 20 "" $ do
     Def f es   -> do  -- f is not projection(-like)!
       def <- getConstInfo f
       let a = defType def
-      checkModality f def
+      -- NOTE(flupe):
+      -- Like above, we only check if polarities are respected.
+      mapM_ typeError =<< checkPolarity' f def
       checkSpine action a (Def f []) es cmp t
     MetaV x es -> do -- we assume meta instantiations to be well-typed
       a <- metaType x

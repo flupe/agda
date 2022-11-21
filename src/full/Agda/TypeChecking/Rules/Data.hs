@@ -1736,8 +1736,7 @@ fitsIn uc forceds t s = do
 
   withoutK <- withoutKOption
 
-  -- NOTE(flupe): we add workOnTypes for irrelevance to work properly
-  workOnTypes $ fitsIn' withoutK forceds t s
+  fitsIn' withoutK forceds t s
   where
   fitsIn' withoutK forceds t s = do
     vt <- do

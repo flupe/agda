@@ -1,6 +1,7 @@
 module Agda.TypeChecking.Modalities
   ( checkModality'
   , checkModality
+  , checkPolarity'
   ) where
 
 import Control.Monad.Except
