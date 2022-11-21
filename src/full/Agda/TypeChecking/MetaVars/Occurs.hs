@@ -172,9 +172,13 @@ definitionCheck d = do
   cxt <- ask
   let irr = isIrrelevant cxt
       er  = hasQuantity0 cxt
+      -- TODO(flupe): we probably should account for other modalities
+      --              (maybe ignoring cohesion is fine)
       m   = occMeta $ feExtra cxt
   -- Anything goes if we are both irrelevant and erased.
   -- Otherwise, have to check the modality of the defined name.
+  -- TODO(flupe) && unused?
+  --             maybe this unless can be removed (if it's only here for optimization)
   unless (irr && er) $ getConstInfo' d >>= \case
    Left _ -> do
     -- Andreas, 2021-07-29.
@@ -202,11 +206,14 @@ definitionCheck d = do
         ]
       abort neverUnblock $ MetaErasedSolution m $ Def d []
 
+-- TODO(flupe): check if we check for the right modality (probably not)
 metaCheck :: MetaId -> OccursM MetaId
 metaCheck m = do
   cxt <- ask
   let rel = getRelevance cxt
       qnt = getQuantity cxt
+      -- NOTE(flupe): we should be using other part of the modality??
+      --              even cohesion is missing??
       m0  = occMeta $ feExtra cxt
 
   -- Check for loop
@@ -227,6 +234,7 @@ metaCheck m = do
 
   mv <- lookupLocalMeta m
   let mmod = getModality mv
+      -- NOTE(flupe) (mmod is the modality of the toplevel meta m0)
       mmod' = setRelevance rel $ setQuantity qnt $ mmod
   if (mmod `moreUsableModality` mmod') then return m else do
     reportSDoc "tc.meta.occurs" 35 $ hsep
@@ -238,7 +246,7 @@ metaCheck m = do
       , text . show $ getQuantity mmod
       ]
     allowAssign <- asksTC envAssignMetas
-    -- Jesper, 2020-11-10: if we encounter a metavariable that is
+    -- Jesper, 2020-11-10: if we encounter a metavariable that 
     -- unusable because of its modality (e.g. irrelevant or erased) we
     -- try to *promote* the meta to the required modality, by creating
     -- a new meta with that modality and solving the old one with
@@ -249,6 +257,9 @@ metaCheck m = do
     -- - If it is in a top-level position, we can instead solve the
     --   equation by instantiating the other way around, so promotion
     --   is not necessary.
+    -- NOTE(flupe): above is outdated, now we don't create a new meta but modify the modality
+    -- of the existing meta directly.
+
     let fail reason = do
           reportSDoc "tc.meta.occurs" 20 $ "Meta occurs check found bad relevance"
           reportSDoc "tc.meta.occurs" 20 $ "aborting because" <+> reason
@@ -260,6 +271,7 @@ metaCheck m = do
     when (isUnguarded cxt)                   $ fail "occurrence is unguarded"
 
     reportSDoc "tc.meta.occurs" 20 $ "Promoting meta" <+> prettyTCM m <+> "to modality" <+> prettyTCM mmod'
+    -- here, the modality is updated.
     updateMetaVar m $ \ mv -> mv { mvInfo = setModality mmod' $ mvInfo mv }
     etaExpandListeners m
     wakeupConstraints m
@@ -485,6 +497,7 @@ instance Occurs Term where
           Level l     -> Level <$> occurs l
           Lit l       -> return v
           Dummy{}     -> return v
+          -- NOTE(flupe): need something like underRelevance for polarity (in the domain of a pi type)
           DontCare v  -> dontCare <$> do underRelevance Irrelevant $ occurs v
           Def d es    -> do
             definitionCheck d
