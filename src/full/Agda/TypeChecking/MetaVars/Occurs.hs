@@ -246,7 +246,7 @@ metaCheck m = do
       , text . show $ getQuantity mmod
       ]
     allowAssign <- asksTC envAssignMetas
-    -- Jesper, 2020-11-10: if we encounter a metavariable that 
+    -- Jesper, 2020-11-10: if we encounter a metavariable that
     -- unusable because of its modality (e.g. irrelevant or erased) we
     -- try to *promote* the meta to the required modality, by creating
     -- a new meta with that modality and solving the old one with

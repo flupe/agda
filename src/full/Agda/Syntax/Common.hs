@@ -1553,6 +1553,9 @@ data ModalPolarity
   | MixedPolarity     -- ^ we don't know anything, argument can be used anywhere.
     deriving (Show, Ord, Enum, Eq, Bounded, Generic)
 
+allModalPolarities :: [ModalPolarity]
+allModalPolarities = [minBound..maxBound]
+
 -- | The derived Ord instance for ModalPolarity is just used for
 --   serialisation and has no particular meaning. The actual order on
 --   modalities is a partial order.
@@ -1695,7 +1698,7 @@ usablePolarity a = modPolarityAnn pol `morePolarity'` StrictlyPositive
     pol = getModalPolarity a
 
 -- | 'PolarityModality' composition.
---   
+--
 composePolarity :: PolarityModality -> PolarityModality -> PolarityModality
 composePolarity (PolarityModality p o l) (PolarityModality p' o' l') =
   PolarityModality (composePolarity' p p') o' l'
@@ -1748,7 +1751,7 @@ instance POSemigroup (UnderAddition PolarityModality) where
 instance POMonoid (UnderAddition PolarityModality) where
 
 -- | Combine inferred 'PolarityModality'.
---   
+--
 addPolarity :: PolarityModality -> PolarityModality -> PolarityModality
 addPolarity (PolarityModality p o l) (PolarityModality p' o' l') =
   PolarityModality (addPolarity' p p') o' l'

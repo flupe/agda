@@ -460,7 +460,7 @@ instance ComputeOccurrences Term where
                                                         -- because we have no reliable way to get their type
             -- TODO(flupe): also keep track of the variable itself, if we need to account for it or not
             -- as was the case below
-          
+
       where
         occI vars = maybe mempty OccursHere $ indexWithDefault unbound vars i
         unbound = flip trace __IMPOSSIBLE__ $

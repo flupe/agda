@@ -56,7 +56,7 @@ data Where
   | DefArg QName Nat               -- ^ in the nth argument of a define constant
   | UnderInf                       -- ^ in the principal argument of built-in ∞
   | VarArg (Maybe Occurrence) Nat  -- ^ as an argument to a bound variable.
-                                   --   The polarity, if given, is the polarity of 
+                                   --   The polarity, if given, is the polarity of
                                    --   the argument the occurence is in
   | MetaArg                        -- ^ as an argument of a metavariable
   | ConArgType QName               -- ^ in the type of a constructor
