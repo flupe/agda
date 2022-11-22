@@ -415,6 +415,7 @@ instance LensModality (FreeEnv' a b c) where
 
 instance LensRelevance (FreeEnv' a b c) where
 instance LensQuantity (FreeEnv' a b c) where
+instance LensModalPolarity (FreeEnv' a b c) where
 
 -- | The initial context.
 

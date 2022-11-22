@@ -33,6 +33,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.MetaVars
 
 import Agda.TypeChecking.Constraints ( wakeupConstraints )
+import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Reduce
@@ -212,8 +213,9 @@ metaCheck m = do
   cxt <- ask
   let rel = getRelevance cxt
       qnt = getQuantity cxt
-      -- NOTE(flupe): we should be using other part of the modality??
-      --              even cohesion is missing??
+      pol = getModalPolarity cxt
+      -- We do not use cohesion here because cohesion uses proper MTT rules,
+      -- no need to check the context
       m0  = occMeta $ feExtra cxt
 
   -- Check for loop
@@ -235,15 +237,13 @@ metaCheck m = do
   mv <- lookupLocalMeta m
   let mmod = getModality mv
       -- NOTE(flupe) (mmod is the modality of the toplevel meta m0)
-      mmod' = setRelevance rel $ setQuantity qnt $ mmod
+      mmod' = setModalPolarity pol $ setRelevance rel $ setQuantity qnt $ mmod
   if (mmod `moreUsableModality` mmod') then return m else do
     reportSDoc "tc.meta.occurs" 35 $ hsep
       [ "occursCheck: meta variable"
       , prettyTCM m
-      , "has relevance"
-      , text . show $ getRelevance mmod
-      , "and quantity"
-      , text . show $ getQuantity mmod
+      , "has modality"
+      , text . verbalize $ getModality mmod
       ]
     allowAssign <- asksTC envAssignMetas
     -- Jesper, 2020-11-10: if we encounter a metavariable that
