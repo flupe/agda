@@ -4290,7 +4290,7 @@ data TypeError
         | NoBindingForBuiltin String
         | NoSuchPrimitiveFunction String
         | DuplicatePrimitiveBinding String QName QName
-        | WrongModalityForPrimitive String ArgInfo ArgInfo
+        | WrongModalityForPrimitive String Modality Modality
         | ShadowedModule C.Name [A.ModuleName]
         | BuiltinInParameterisedModule String
         | IllegalLetInTelescope C.TypedBinding
