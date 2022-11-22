@@ -156,8 +156,6 @@ checkDataDef i name uc (A.DataDefParams gpars ps) cs =
                   }
 
             escapeContext impossible npars $ do
-              -- Add the constant with unitPolarity == @++ so that the type checker also checks
-              -- for strict positivity
               addConstant' name defaultArgInfo name t $ DatatypeDefn dataDef
                 -- polarity and argOcc.s determined by the positivity checker
 
