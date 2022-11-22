@@ -3590,8 +3590,8 @@ instance LensTCEnv TCEnv where
 
 instance LensModality TCEnv where
   -- Cohesion shouldn't have an environment component.
-  getModality = envModality
-  mapModality f e = e { envModality = f $ envModality e }
+  getModality = setCohesion defaultCohesion . envModality
+  mapModality f e = e { envModality = setCohesion defaultCohesion $ f $ envModality e }
 
 instance LensRelevance TCEnv where
 instance LensQuantity  TCEnv where
