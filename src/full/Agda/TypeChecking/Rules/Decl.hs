@@ -715,11 +715,11 @@ checkPrimitive i x (Arg info e) =
     -- modalities, and likely very few will have different modalities in the
     -- future. Thus, rather than, the arguably nicer solution of adding a
     -- modality to PrimImpl we simply check the few special primitives here.
-    let expectedInfo =
+    let expectedModality =
           case name of
             -- Currently no special primitives
-            _ -> defaultArgInfo
-    unless (info == expectedInfo) $ typeError $ WrongModalityForPrimitive name info expectedInfo
+            _ -> defaultModality
+    unless (getModality info `sameModality` expectedModality) $ typeError $ WrongModalityForPrimitive name (getModality info) expectedModality
     bindPrimitive s pf
     addConstant' x info x t $
         Primitive { primAbstr    = Info.defAbstract i
