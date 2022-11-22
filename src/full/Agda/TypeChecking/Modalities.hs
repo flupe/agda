@@ -65,18 +65,6 @@ checkQuantity' x def = do
 
 -- | The second argument is the definition of the first.
 --   Returns 'Nothing' if ok, otherwise the error message.
-checkCohesion' :: (MonadConversion m) => QName -> Definition -> m (Maybe TypeError)
-checkCohesion' x def = do
-  let dc = getCohesion def
-  c <- asksTC getCohesion
-  reportSDoc "tc.mod.coh" 50 $ vcat
-    [ "declaration cohesion =" <+> text (show dc)
-    , "context     cohesion =" <+> text (show c)
-    ]
-  return $ boolToMaybe (not $ dc `moreCohesion` c) $ DefinitionHasWrongCohesion x dc
-
--- | The second argument is the definition of the first.
---   Returns 'Nothing' if ok, otherwise the error message.
 checkPolarity' :: (MonadConversion m) => QName -> Definition -> m (Maybe TypeError)
 checkPolarity' x def = do
   let dp = getModalPolarity def
@@ -92,9 +80,8 @@ checkModality' :: (MonadConversion m) => QName -> Definition -> m (Maybe TypeErr
 checkModality' x def = do
   relOk <- checkRelevance' x def
   qtyOk <- checkQuantity' x def
-  cohOk <- checkCohesion' x def
   polOk <- checkPolarity' x def
-  return $ relOk <|> qtyOk <|> cohOk <|> polOk
+  return $ relOk <|> qtyOk <|> polOk
 
 -- | The second argument is the definition of the first.
 checkModality :: (MonadConversion m) => QName -> Definition -> m ()

@@ -198,22 +198,12 @@ applyCohesionToContext thing =
   case getCohesion thing of
     m | m == unitCohesion -> id
       | otherwise         -> applyCohesionToContextOnly   m
-                           . applyCohesionToJudgmentOnly  m
                              -- Cohesion does not apply to the judgment.
 
 applyCohesionToContextOnly :: (MonadTCEnv tcm) => Cohesion -> tcm a -> tcm a
 applyCohesionToContextOnly q = localTC
   $ over eContext     (map $ inverseApplyCohesion q)
   . over eLetBindings (Map.map . fmap . second $ inverseApplyCohesion q)
-
--- | Apply quantity @q@ the the quantity annotation of the (typing/equality)
---   judgement.  This is part of the work done when going into a @q@-context.
---   This is needed to be able to check definitions that didn't have their
---   modality divided since they weren't in the context.
---
---   Precondition: @Cohesion /= unitCohesion@
-applyCohesionToJudgmentOnly :: (MonadTCEnv tcm) => Cohesion -> tcm a -> tcm a
-applyCohesionToJudgmentOnly = localTC . over (eModality . lModCohesion) . composeCohesion
 
 -- | Can we split on arguments of the given cohesion?
 splittableCohesion :: (HasOptions m, LensCohesion a) => a -> m Bool

@@ -2001,7 +2001,6 @@ instance LensArgInfo Definition where
 instance LensModality  Definition where
 instance LensQuantity  Definition where
 instance LensRelevance Definition where
-instance LensCohesion  Definition where
 instance LensModalPolarity Definition where
 
 data NumGeneralizableArgs
@@ -3596,7 +3595,6 @@ instance LensModality TCEnv where
 
 instance LensRelevance TCEnv where
 instance LensQuantity  TCEnv where
-instance LensCohesion  TCEnv where
 instance LensModalPolarity TCEnv where
 
 data UnquoteFlags = UnquoteFlags
@@ -4250,7 +4248,6 @@ data TypeError
         | SplitOnNonEtaRecord QName
         | DefinitionIsIrrelevant QName
         | DefinitionIsErased QName
-        | DefinitionHasWrongCohesion QName Cohesion
         | DefinitionHasWrongPolarity QName PolarityModality PolarityModality
         | VariableIsIrrelevant Name
         | VariableIsErased Name
