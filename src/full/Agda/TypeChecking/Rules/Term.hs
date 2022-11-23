@@ -318,9 +318,13 @@ checkTelescope' lamOrPi (b : tel) ret =
 checkDomain :: (LensLock a, LensModality a) => LamOrPi -> List1 a -> A.Expr -> TCM Type
 checkDomain lamOrPi xs e = do
     let (c :| cs) = fmap (getCohesion . getModality) xs
+    -- Since these bindings all originate from a single parenthesized blob (do they?),
+    -- they cannot possibly have different cohesion annotations.
     unless (all (c ==) cs) $ __IMPOSSIBLE__
 
     let (q :| qs) = fmap (getQuantity . getModality) xs
+    -- Since these bindings all originate from a single parenthesized blob (do they?),
+    -- they cannot possibly have different quantity annotations.
     unless (all (q ==) qs) $ __IMPOSSIBLE__
 
     t <- applyQuantityToJudgement q $
