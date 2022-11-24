@@ -499,7 +499,7 @@ instance ComputeOccurrences Type where
 
 instance ComputeOccurrences a => ComputeOccurrences (Tele a) where
   occurrences EmptyTel        = mempty
-  occurrences (ExtendTel a b) = occurrences a <> occurrences b
+  occurrences (ExtendTel a b) = occurrences (a, b)
 
 instance ComputeOccurrences a => ComputeOccurrences (Abs a) where
   occurrences (Abs   _ b) = withExtendedOccEnv Nothing $ occurrences b
@@ -577,8 +577,10 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
 
             reportSLn "tc.pos.args" 50 =<< ("Adding datatypes parameters in context " ++) . prettyShow <$> vars np
 
-            -- Occurrences in the types of the constructor arguments.
+            -- Parameters as items
             vnp <- vars np
+
+            -- Occurrences in the types of the constructor arguments.
             (OccursAs (ConArgType c) <$> getOccurrences vnp tel1') <> do
               -- Occurrences in the indices of the data type the constructor targets.
               -- Andreas, 2020-02-15, issue #4447:
@@ -588,15 +590,12 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
               -- In any case, if @t@ is not showing itself as the data type, we need to
               -- do something conservative.  We will just collect *all* occurrences
               -- and flip their sign (variance) using 'LeftOfArrow'.
-              vst <- (replicate (size tel1') Nothing ++) <$> vars (size telD)
-              let fallback = OccursAs LeftOfArrow <$> getOccurrences (vst) t -- NB::Defined but not used
               case unEl t of
                 Def q' vs
                   | q == q' -> do
                       let indices = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ drop np vs
-                      OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences vst indices
-                      -- TODO(flupe): why is this OnlyVarsUpTo np and not OnlyVarsUpTo (size tel)?
-                  | otherwise -> __IMPOSSIBLE__  -- fallback -- this ought to be impossible now (but wasn't, see #4447)
+                      OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences (replicate (size tel1') Nothing ++ vnp) indices
+                  | otherwise -> __IMPOSSIBLE__  -- this ought to be impossible now (but wasn't, see #4447)
                 Pi{}       -> __IMPOSSIBLE__  -- eliminated  by telView
                 MetaV{}    -> __IMPOSSIBLE__  -- not a constructor target; should have been solved by now
                 Var{}      -> __IMPOSSIBLE__  -- not a constructor target
