@@ -1,0 +1,5 @@
+PolarityAnnotations-Data.agda:9,3-7
+Variable A is bound with strictly positive polarity, so it cannot
+be used here at a negative position
+when checking that the type (A → ⊤) → Wrong A of the constructor
+cons fits in the sort Set of the datatype.
