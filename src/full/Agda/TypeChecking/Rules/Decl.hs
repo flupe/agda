@@ -627,14 +627,25 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
       whenM ((> 0) <$> getContextSize) $ do
         typeError $ GenericError $ "We don't like postulated sizes in parametrized modules."
 
-  -- TODO(flupe): check whether the telescope includes module parameters and whether do drop those
-  TelV tel _ <- telView t
+  -- Lucas, 2022-11-30: If this is a datatype, forbid polarity annotations for indices
+  when (kind == DataName) $ do
+    TelV tel _ <- telView t
+    let idxp = modPolarityAnn . getModalPolarity <$> drop npars (telToList tel)
+    when (any (/= MixedPolarity) idxp) $ typeError $ GenericError "Cannot annotate datatype indices with polarity other than Mixed."
 
-  -- Retrieve polarity modalities given explicitely in type annotations
-  let occs' = modalPolarityToOccurrence . modPolarityAnn . getModalPolarity <$> telToList tel
+  -- NOTE(flupe):
+  --  if we are checking a postulate, retrieve the polarities in the type annotation.
+  --  this WILL reduce the type.
+  --  if the thing we're checking is NOT an axiom, the occurences will be figured out by the positivity checker later on.
+  occs' <- do
+    if (kind == AxiomName) then do
+      TelV tel _ <- telView t
+      pure (modalPolarityToOccurrence . modPolarityAnn . getModalPolarity <$> telToList tel)
+    else pure []
 
-  reportSLn "tc.polarity.annotations" 10 $
-    prettyShow x ++ " has been assigned polarities through type annotations:\n  " ++ prettyShow occs'
+  when (kind == AxiomName) $
+    reportSLn "tc.polarity.annotations" 10 $
+      "postulate " ++ prettyShow x ++ " has been assigned polarities through type annotations:\n  " ++ prettyShow occs'
 
   (occs, pols) <- case mp of
     Nothing   ->
@@ -644,6 +655,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
       -- If any polarity retrieved from the type is not Mixed, it means an explicit
       -- annotation was given, so we throw an error because the pragma shouldn't be used
       when (any (/= Mixed) occs') $ typeError (ExplicitPolarityVsPragma x)
+
+      TelV tel _ <- telView t
 
       -- Ensure that polarity pragmas do not contain too many occurrences.
       let n = length (telToList tel)
