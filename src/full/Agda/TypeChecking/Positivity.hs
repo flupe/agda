@@ -1,14 +1,13 @@
-
 {-# LANGUAGE NondecreasingIndentation #-}
 
 -- | Check that a datatype is strictly positive.
 module Agda.TypeChecking.Positivity where
 
-import Prelude hiding ( null )
+import Prelude hiding ( null, (!!) )
 
 import Control.Applicative hiding (empty)
 import Control.DeepSeq
-import Control.Monad        ( forM_, guard, liftM2, zipWithM)
+import Control.Monad ( forM_, guard, liftM2, zipWithM )
 import Control.Monad.Reader ( MonadReader(..), asks, Reader, runReader )
 
 import Data.Either
@@ -24,7 +23,6 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as DS
 import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified Data.List.NonEmpty as NE ((!!))
 
 import Debug.Trace
 
@@ -47,7 +45,7 @@ import Agda.TypeChecking.Warnings
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 import Agda.Utils.Function (applyUnless)
 import Agda.Utils.Functor
-import Agda.Utils.List hiding ((!!))
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -368,14 +366,14 @@ flatten =
 
 -- | Context for computing occurrences.
 data OccEnv = OccEnv
-  { vars  :: [Maybe Item]
+  { vars :: [Maybe Item]
     -- ^ Items corresponding to the free variables.
     --
     --   Potential invariant: It seems as if the list has the form
     --   @'genericReplicate' n 'Nothing' ++ 'map' ('Just' . 'AnArg') is@,
     --   for some @n@ and @is@, where @is@ is decreasing
     --   (non-strictly).
-  , inf   :: Maybe QName
+  , inf  :: Maybe QName
     -- ^ Name for ∞ builtin.
   }
 
@@ -412,9 +410,6 @@ class ComputeOccurrences a where
   default occurrences :: (Foldable t, ComputeOccurrences b, t b ~ a) => a -> OccM OccurrencesBuilder
   occurrences = foldMap occurrences
 
---instance ComputeOccurrences Telescope where
---  occurrences tel = foldr1 (\ a b -> mappend <$> a <*> underBinder b) $ fmap occurrences tel
-
 instance ComputeOccurrences Clause where
   occurrences cl = do
     let ps    = namedClausePats cl
@@ -448,8 +443,8 @@ instance ComputeOccurrences Term where
       asks (occI . vars) <> do
         occs <- mapM occurrences args
 
-        -- Now, the variable may have the polarities of its arguments stored in the context
-        -- (iff the variable refers to a datatype paratemer)
+        -- Lucas, 2022-12-01: Now, the variable may have the polarities of its arguments
+        -- stored in the context (iff the variable refers to a datatype parameter)
         item <- reader ((!! i) . vars)
 
         let getPol i = fromMaybe Mixed $ do
@@ -574,12 +569,12 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
             tel1' <- addContext tel0 $ normalise $ tel1
 
             -- Make parameters into context items, with polarity info
-            vnp <- parametersToItems tel0 np
+            pvars <- parametersToItems tel0 np
 
-            reportSLn "tc.pos.params" 50 $ "Adding datatypes parameters in context " ++ prettyShow vnp
+            reportSLn "tc.pos.params" 50 $ "Adding datatypes parameters in context " ++ prettyShow pvars
 
             -- Occurrences in the types of the constructor arguments.
-            (OccursAs (ConArgType c) <$> getOccurrences vnp tel1') <> do
+            (OccursAs (ConArgType c) <$> getOccurrences pvars tel1') <> do
               -- Occurrences in the indices of the data type the constructor targets.
               -- Andreas, 2020-02-15, issue #4447:
               -- WAS: @t@ is not necessarily a data type, but it could be something
@@ -592,7 +587,7 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
                 Def q' vs
                   | q == q' -> do
                       let indices = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ drop np vs
-                      OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences (replicate (size tel1') Nothing ++ vnp) indices
+                      OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences (replicate (size tel1') Nothing ++ pvars) indices
                   | otherwise -> __IMPOSSIBLE__  -- this ought to be impossible now (but wasn't, see #4447)
                 Pi{}       -> __IMPOSSIBLE__  -- eliminated  by telView
                 MetaV{}    -> __IMPOSSIBLE__  -- not a constructor target; should have been solved by now
@@ -609,10 +604,8 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
     Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Record{recPars = np, recTel = tel} -> do
       let (tel0,tel1) = splitTelescopeAt np tel
-
-      vnp <- parametersToItems tel0 np
-
-      getOccurrences vnp =<< addContext tel0 (normalise tel1) -- Andreas, 2017-01-01, issue #1899, treat like data types
+      pvars <- parametersToItems tel0 np
+      getOccurrences pvars =<< addContext tel0 (normalise tel1) -- Andreas, 2017-01-01, issue #1899, treat like data types
 
     -- Arguments to other kinds of definitions are hard-wired.
     Constructor{}      -> mempty
