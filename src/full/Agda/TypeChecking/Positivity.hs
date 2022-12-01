@@ -8,7 +8,7 @@ import Prelude hiding ( null )
 
 import Control.Applicative hiding (empty)
 import Control.DeepSeq
-import Control.Monad        ( forM_, guard, liftM2 )
+import Control.Monad        ( forM_, guard, liftM2, zipWithM)
 import Control.Monad.Reader ( MonadReader(..), asks, Reader, runReader )
 
 import Data.Either
@@ -280,8 +280,7 @@ getDefArity def = do
 
 -- Computing occurrences --------------------------------------------------
 
-data Item = AnArg Nat (Maybe [Dom (ArgName, Type)])
-            -- ^ is @Maybe Type@ is @Just t@, it means the item is a parameter of a datatype
+data Item = AnArg Nat [Occurrence]
           | ADef QName
   deriving (Eq, Ord, Show)
 
@@ -428,7 +427,7 @@ instance ComputeOccurrences Clause where
     where
       matching (i, p)
         | properlyMatching (namedThing $ unArg p) =
-            Just $ OccursAs Matched $ OccursHere $ AnArg i Nothing -- an argument to a function
+            Just $ OccursAs Matched $ OccursHere $ AnArg i []
         | otherwise                  = Nothing
 
       -- @patItems ps@ creates a map from the pattern variables of @ps@
@@ -441,26 +440,23 @@ instance ComputeOccurrences Clause where
         where
           ixs = map dbPatVarIndex $ lefts $ map unArg $ patternVars $ namedThing <$> p
 
-          makeEntry x = singleton (x, Just $ AnArg i Nothing) -- TODO(flupe)
+          makeEntry x = singleton (x, Just $ AnArg i [])
 
 instance ComputeOccurrences Term where
   occurrences v = case unSpine v of
     Var i args ->
-      (asks (occI . vars)) <> do
-      occs <- mapM occurrences args
-      item <- reader ((!! i) . vars)
-      case item of
-        Just (AnArg _ (Just t)) ->
-          --let tel = telToList $ theTel t in
-          return . Concat $ zipWith (\i o ->
-            let pol = Just $ modalPolarityToOccurrence $ modPolarityAnn $ getModalPolarity (t !! i)
-            in OccursAs (VarArg pol i) o) [0..] occs
-        _ -> return . Concat $ zipWith (\i o ->
-              OccursAs (VarArg Nothing i) o) [0..] occs -- treat local variables and arguments as mixed,
-                                                        -- because we have no reliable way to get their type
-            -- TODO(flupe): also keep track of the variable itself, if we need to account for it or not
-            -- as was the case below
+      asks (occI . vars) <> do
+        occs <- mapM occurrences args
 
+        -- Now, the variable may have the polarities of its arguments stored in the context
+        -- (iff the variable refers to a datatype paratemer)
+        item <- reader ((!! i) . vars)
+
+        let getPol i = fromMaybe Mixed $ do
+              AnArg _ aoccs <- item
+              aoccs !!! i
+
+        return $ Concat $ zipWith (\i -> OccursAs (VarArg (getPol i) i)) [0..] occs
       where
         occI vars = maybe mempty OccursHere $ indexWithDefault unbound vars i
         unbound = flip trace __IMPOSSIBLE__ $
@@ -527,6 +523,12 @@ instance (ComputeOccurrences a, ComputeOccurrences b) => ComputeOccurrences (a, 
 computeOccurrences :: QName -> TCM (Map Item Integer)
 computeOccurrences q = flatten <$> computeOccurrences' q
 
+-- | Returns the occurences given explicitely as polarity annotations in the function type
+getOccurrencesFromType :: Type -> TCM [Occurrence]
+getOccurrencesFromType t = do
+  telList <- telToList . theTel <$> telView t
+  return $ modalPolarityToOccurrence . modPolarityAnn . getModalPolarity <$> telList
+
 -- | Computes the occurrences in the given definition.
 computeOccurrences' :: QName -> TCM OccurrencesBuilder
 computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
@@ -554,12 +556,10 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
         caseMaybeM (isSizeType dom) (return 0) $ \ _ -> return 1
       let np = np0 + sizeIndex
       let xs = [np .. size telD - 1] -- argument positions corresponding to indices
-      ioccs <- Concat <$>
-        ((++) <$> mapM (\i -> do tv <- telToList . theTel <$> (telView $ snd $ unDom $ telToList telD !! i)
-           --                      return $ OccursHere $ AnArg i (Just tv)) [np0 .. np - 1] -- TODO(flupe): ....
-                                 return $ OccursHere $ AnArg i (Just tv)) [np0 .. np - 1] -- TODO(flupe): ....
-              <*> mapM (\i -> do tv <- telToList . theTel <$> (telView $ snd $ unDom $ telToList telD !! i)
-                                 return $ OccursAs IsIndex $ OccursHere $ AnArg i (Just tv)) xs)
+
+      let ioccs = Concat $ map (\i -> OccursHere $ AnArg i []) [np0 .. np - 1]
+                        ++ map (\i -> OccursAs IsIndex $ OccursHere $ AnArg i []) xs
+
       -- Then, we compute the occurrences in the constructor types.
       let conOcc c = do
             -- Andreas, 2020-02-15, issue #4447:
@@ -572,13 +572,11 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
             -- Normalization needed e.g. for test/succeed/Bush.agda.
             -- (Actually, for Bush.agda, reducing the parameters should be sufficient.)
             tel1' <- addContext tel0 $ normalise $ tel1
-            let vars n = mapM (\i -> do tv <- telToList . theTel <$> (telView $ snd $ unDom $ telToList telD !! i)
-                                        return $ Just $ AnArg i (Just tv)) (downFrom n)
 
-            reportSLn "tc.pos.args" 50 =<< ("Adding datatypes parameters in context " ++) . prettyShow <$> vars np
+            -- Make parameters into context items, with polarity info
+            vnp <- parametersToItems tel0 np
 
-            -- Parameters as items
-            vnp <- vars np
+            reportSLn "tc.pos.params" 50 $ "Adding datatypes parameters in context " ++ prettyShow vnp
 
             -- Occurrences in the types of the constructor arguments.
             (OccursAs (ConArgType c) <$> getOccurrences vnp tel1') <> do
@@ -611,9 +609,9 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
     Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Record{recPars = np, recTel = tel} -> do
       let (tel0,tel1) = splitTelescopeAt np tel
-          vars n = mapM (\i -> do tv <- telToList . theTel <$> (telView $ snd $ unDom $ telToList tel !! i)
-                                  return $ Just $ AnArg i (Just tv)) (downFrom n)
-      vnp <- vars np
+
+      vnp <- parametersToItems tel0 np
+
       getOccurrences vnp =<< addContext tel0 (normalise tel1) -- Andreas, 2017-01-01, issue #1899, treat like data types
 
     -- Arguments to other kinds of definitions are hard-wired.
@@ -624,6 +622,14 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
     PrimitiveSort{}    -> mempty
     GeneralizableVar{} -> mempty
     AbstractDefn{}     -> __IMPOSSIBLE__
+  where
+    parametersToItems :: Telescope -> Nat -> TCM [Maybe Item]
+    parametersToItems tel n = reverse <$>
+      zipWithM (\i -> fmap (Just . AnArg i) . getOccurrencesFromType)
+        [0 .. n -1]
+        (snd . unDom <$> telToList tel)
+
+
 
 -- Building the occurrence graph ------------------------------------------
 
@@ -758,7 +764,7 @@ computeEdges muts q ob =
     OccursHere' i ->
       let o = OccursWhere (getRange i) cs os in
       case i of
-        AnArg i t -> -- TODO(flupe): check if it's fine
+        AnArg i t ->
           return $ applyUnless (null pol) (Graph.Edge
             { Graph.source = ArgNode q i
             , Graph.target = to
@@ -782,9 +788,7 @@ computeEdges muts q ob =
     -> Where
     -> TCM (Maybe Node, Occurrence)
   mkEdge' to !pol = \case
-    VarArg Nothing i  -> mixed    -- locally-bound variable
-    VarArg (Just p) i -> addPol p -- variable for which we now the polarity of the i-th argument
-
+    VarArg p i     -> addPol p
     MetaArg        -> mixed
     LeftOfArrow    -> negative
     DefArg d i     -> do
@@ -879,8 +883,8 @@ instance PrettyTCM (Seq OccursWhere) where
                         [do -- this cannot fail if an 'UnderInf' has been generated
                             Def inf _ <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinInf
                             prettyTCM inf]
-        VarArg k i   -> pwords "in an argument of a bound variable" ++ [prettyTCM k]
-                     ++ pwords "at position" ++ [prettyTCM i]
+        VarArg p i   -> pwords "in an argument of a bound variable at position" ++ [prettyTCM i]
+                        ++ pwords "which uses its argument with polarity" ++ [ pretty p ]
         MetaArg      -> pwords "in an argument of a metavariable"
         ConArgType c -> pwords "in the type of the constructor" ++ [prettyTCM c]
         IndArgType c -> pwords "in an index of the target type of the constructor" ++ [prettyTCM c]
