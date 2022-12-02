@@ -23,6 +23,7 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as DS
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Strict.These
 
 import Debug.Trace
 
@@ -242,11 +243,26 @@ checkStrictlyPositive mi qset = do
           [ "args of" <+> prettyTCM q <+> "="
           , nest 2 $ prettyList $ map prettyTCM args
           ]
+
         -- The list args can take a long time to compute, but contains
         -- small elements, and is stored in the interface (right?), so
         -- it is computed deep-strictly.
-        setArgOccurrences q $!! args
+        modifyArgOccurrences q (mergeOccs $!! args)
+
       where
+      mergeOccs :: [Occurrence] -> [Occurrence] -> [Occurrence]
+      mergeOccs poccs toccs =
+        -- Lucas, 2022-12-01:
+        -- `poccs` are the occurences computed by the positivity-checker
+        -- `toccs` are the occurences/polarities explicitely given by the user
+        --   (and enforced through type-checking)
+        -- We consider the polarities explicitely given (toccs) to take priority over the ones
+        -- found out by the positivity checker.
+        -- Note: Alas, this is hard to enforce given that non-annotated variables are
+        -- always annotated with Mixed polarity. If the annotated polarity is Mixed,
+        -- for now we always rely on the positivity-checker.
+        align poccs toccs <&> mergeThese (\a b -> if b == Mixed then a else b)
+
       -- Andreas, 2018-11-23, issue #3404
       -- Only assign argument occurrences to things which have a definition.
       -- Things without a definition would be judged "constant" in all arguments,
@@ -621,7 +637,6 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ \ def -> do
       zipWithM (\i -> fmap (Just . AnArg i) . getOccurrencesFromType)
         [0 .. n -1]
         (snd . unDom <$> telToList tel)
-
 
 
 -- Building the occurrence graph ------------------------------------------

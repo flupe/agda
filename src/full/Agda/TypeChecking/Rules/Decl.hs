@@ -627,46 +627,25 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
       whenM ((> 0) <$> getContextSize) $ do
         typeError $ GenericError $ "We don't like postulated sizes in parametrized modules."
 
+  TelV tel _ <- telView t
+  let eoccs = modalPolarityToOccurrence . modPolarityAnn . getModalPolarity <$> telToList tel
+
   -- Lucas, 2022-11-30: If this is a datatype, forbid polarity annotations for indices
-  when (kind == DataName) $ do
-    TelV tel _ <- telView t
-    let idxp = modPolarityAnn . getModalPolarity <$> drop npars (telToList tel)
-    when (any (/= MixedPolarity) idxp) $ typeError $ GenericError "Cannot annotate datatype indices with polarity other than Mixed."
+  when (kind == DataName && any (/= Mixed) (drop npars eoccs)) $
+    typeError $ GenericError "Cannot annotate datatype indices with polarity other than Mixed."
 
-  -- NOTE(flupe):
-  --  if we are checking a postulate, retrieve the polarities in the type annotation.
-  --  this WILL reduce the type.
-  --  if the thing we're checking is NOT an axiom, the occurences will be figured out by the positivity checker later on.
-  occs' <- do
-    if (kind == AxiomName) then do
-      TelV tel _ <- telView t
-      pure (modalPolarityToOccurrence . modPolarityAnn . getModalPolarity <$> telToList tel)
-    else pure []
-
-  when (kind == AxiomName) $
-    reportSLn "tc.polarity.annotations" 10 $
-      "postulate " ++ prettyShow x ++ " has been assigned polarities through type annotations:\n  " ++ prettyShow occs'
-
-  (occs, pols) <- case mp of
-    Nothing   ->
-      -- If no polarities given with a POLARITY pragma, we use the ones coming from explicit polarity annotations
-      return (occs', map polFromOcc occs')
+  occs <- case mp of
+    Nothing -> return eoccs
     Just occs -> do
       -- If any polarity retrieved from the type is not Mixed, it means an explicit
       -- annotation was given, so we throw an error because the pragma shouldn't be used
-      when (any (/= Mixed) occs') $ typeError (ExplicitPolarityVsPragma x)
-
-      TelV tel _ <- telView t
+      when (any (/= Mixed) eoccs) $ typeError (ExplicitPolarityVsPragma x)
 
       -- Ensure that polarity pragmas do not contain too many occurrences.
       let n = length (telToList tel)
       when (n < length occs) $ typeError (TooManyPolarities x n)
 
-      let pols = map polFromOcc occs
-      reportSLn "tc.polarity.pragma" 10 $
-        "Setting occurrences and polarity for " ++ prettyShow x ++ ":\n  " ++
-        prettyShow occs ++ "\n  " ++ prettyShow pols
-      return (occs, pols)
+      return occs
 
   -- Set blocking tag to MissingClauses if we still expect clauses
   let blk = case kind of
@@ -688,6 +667,8 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
           _         -> __IMPOSSIBLE__
         where fun = FunctionDefn $ emptyFunctionData{ _funAbstr = Info.defAbstract i }
 
+  let pols = map polFromOcc eoccs
+
   addConstant x =<< do
     useTerPragma $ defn
         { defArgOccurrences    = occs
@@ -695,6 +676,10 @@ checkAxiom' gentel kind i info0 mp x e = whenAbstractFreezeMetasAfter i $ defaul
         , defGeneralizedParams = genParams
         , defBlocked           = blk
         }
+
+  reportSLn "tc.polarity" 10 $
+    "Setting occurrences and polarity for " ++ prettyShow x ++ ":\n  " ++
+    prettyShow occs ++ "\n  " ++ prettyShow pols
 
   -- Add the definition to the instance table, if needed
   case Info.defInstance i of
