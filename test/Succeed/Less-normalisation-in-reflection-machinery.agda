@@ -9,8 +9,12 @@ open import Common.Product
 Loop : Set
 Loop = Loop
 
-postulate
-  loop : Loop
+-- Lucas, 2022-11-30:
+-- Now, the type of postulates is reduced to retrieve the polarity annotations
+-- (in TypeChecking.Decl:checkAxiom')
+
+-- postulate
+--   loop : Loop
 
 data Box (A : Set) : Set where
   box : A → Box A
@@ -34,6 +38,7 @@ macro
 test₄ : Set
 test₄ = m₄ Loop
 
+{-
 macro
 
   m₅ : Term → TC ⊤
@@ -42,6 +47,7 @@ macro
 
 test₅ : Set
 test₅ = m₅
+-}
 
 macro
 
