@@ -7,7 +7,6 @@ module Agda.TypeChecking.Positivity.Occurrence
   , boundToEverySome
   , productOfEdgesInBoundedWalk
   , modalPolarityToOccurrence
-  , ojoin
   ) where
 
 import Control.DeepSeq
@@ -165,19 +164,6 @@ instance StarSemiRing Occurrence where
   ostar StrictPos = StrictPos
   ostar GuardPos  = StrictPos
   ostar Unused    = StrictPos
-
-ojoin :: Occurrence -> Occurrence -> Occurrence
-ojoin Unused _        = Unused
-ojoin _ Unused        = Unused
-ojoin JustNeg  _      = JustNeg
-ojoin _ JustNeg       = JustNeg
-ojoin GuardPos _      = GuardPos
-ojoin _ GuardPos      = GuardPos
-ojoin StrictPos _     = StrictPos
-ojoin _ StrictPos     = StrictPos
-ojoin JustPos _       = JustPos
-ojoin _ JustPos       = JustPos
-ojoin Mixed Mixed     = Mixed
 
 instance Null Occurrence where
   empty = Unused
