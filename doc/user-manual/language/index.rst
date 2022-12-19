@@ -32,9 +32,11 @@ Language Reference
    literal-overloading
    lossy-unification
    mixfix-operators
+   modalities
    module-system
    mutual-recursion
    pattern-synonyms
+   polarity
    positivity-checking
    postulates
    pragmas

@@ -812,6 +812,13 @@ Other features
 
      This option may only be used if :option:`--erasure` is used.
 
+.. option:: --polarity
+
+     .. versionadded:: 2.6.4
+
+     Enables the use of modal polarity annotations, and their interaction with
+     the positivity checker. See :ref:`polarity`.
+
 .. _warnings:
 
 Warnings
@@ -1135,6 +1142,7 @@ are infective:
 * :option:`--flat-split`
 * :option:`--erasure`
 * :option:`--erased-matches`
+* :option:`--polarity`
 
 Furthermore :option:`--cubical` and :option:`--erased-cubical` are
 *jointly infective*: if one of them is used in one module, then one or
@@ -1209,6 +1217,7 @@ again, the source file is re-typechecked instead:
 * :option:`--no-universe-polymorphism`
 * :option:`--omega-in-omega`
 * :option:`--overlapping-instances`
+* :option:`--polarity`
 * :option:`--prop`
 * :option:`--qualified-instances`
 * :option:`--rewriting`
