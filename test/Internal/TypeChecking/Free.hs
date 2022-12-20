@@ -134,8 +134,8 @@ prop_Monoid_VarOcc0_commutative = isCommutative mappend
 prop_topVarOcc0 :: VarOcc0 -> Bool
 prop_topVarOcc0 = isZero topVarOcc mappend
 
--- ** 'composeVarOcc' forms an idempotent commutative monoid with
--- unit 'oneVarOcc' and zero 'mempty'
+-- ** 'composeVarOcc' forms a commutative monoid with unit 'oneVarOcc' and zero
+-- 'mempty'
 
 prop_composeVarOcc0_associative :: Prop3 VarOcc0
 prop_composeVarOcc0_associative = isAssociative composeVarOcc
@@ -143,8 +143,9 @@ prop_composeVarOcc0_associative = isAssociative composeVarOcc
 prop_composeVarOcc0_commutative :: Prop2 VarOcc0
 prop_composeVarOcc0_commutative = isCommutative composeVarOcc
 
-prop_composeVarOcc0_idempotent :: Prop1 VarOcc0
-prop_composeVarOcc0_idempotent = isIdempotent composeVarOcc
+-- This is not true anymore, now that we have non-idempotent modalities
+-- prop_composeVarOcc0_idempotent :: Prop1 VarOcc0
+-- prop_composeVarOcc0_idempotent = isIdempotent composeVarOcc
 
 prop_composeVarOcc0_zero :: Prop1 VarOcc0
 prop_composeVarOcc0_zero = isZero mempty composeVarOcc
@@ -173,7 +174,7 @@ prop_Monoid_VarOcc_commutative = isCommutative mappend
 prop_topVarOcc :: VarOcc -> Bool
 prop_topVarOcc = isZero topVarOcc mappend
 
--- ** 'composeVarOcc' forms an idempotent commutative monoid with
+-- ** 'composeVarOcc' forms an commutative monoid with
 -- unit 'oneVarOcc'
 
 prop_composeVarOcc_associative :: Prop3 VarOcc
@@ -182,8 +183,9 @@ prop_composeVarOcc_associative = isAssociative composeVarOcc
 prop_composeVarOcc_commutative :: Prop2 VarOcc
 prop_composeVarOcc_commutative = isCommutative composeVarOcc
 
-prop_composeVarOcc_idempotent :: Prop1 VarOcc
-prop_composeVarOcc_idempotent = isIdempotent composeVarOcc
+-- This is not true anymore, now that we have non-idempotent modalities
+-- prop_composeVarOcc_idempotent :: Prop1 VarOcc
+-- prop_composeVarOcc_idempotent = isIdempotent composeVarOcc
 
 -- -- Caveat: not a zero for multiplication in general
 -- -- since it does not empty or flood (with everything) the MetaSet in Flexible.
