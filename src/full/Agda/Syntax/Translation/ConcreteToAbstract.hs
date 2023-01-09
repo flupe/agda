@@ -3240,6 +3240,10 @@ checkAttributes ((attr, r, s) : attrs) =
       unlessM (optCohesion <$> pragmaOptions) $
         err "Cohesion" "--cohesion"
       cont
+    PolarityAttribute{} -> do
+      unlessM (optPolarity <$> pragmaOptions) $
+        err "Polarity" "--polarity"
+      cont
   where
   cont = checkAttributes attrs
 

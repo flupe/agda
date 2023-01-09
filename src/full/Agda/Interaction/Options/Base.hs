@@ -239,6 +239,8 @@ data PragmaOptions = PragmaOptions
      -- ^ Are the cohesion modalities available?
   , optFlatSplit                 :: WithDefault 'False
      -- ^ Can we split on a (@flat x : A) argument?
+  , optPolarity                  :: Bool
+     -- ^ Can we use modal polarities (@++, @+, etc.)?
   , optImportSorts               :: Bool
      -- ^ Should every top-level module start with an implicit statement
      --   @open import Agda.Primitive using (Set; Prop)@?
@@ -362,6 +364,7 @@ defaultPragmaOptions = PragmaOptions
   , optCallByName                = False
   , optConfluenceCheck           = Nothing
   , optCohesion                  = False
+  , optPolarity                  = False
   , optFlatSplit                 = Default
   , optImportSorts               = True
   , optAllowExec                 = False
@@ -569,6 +572,7 @@ infectiveCoinfectiveOptions =
   , infectiveOption (collapseDefault . optGuardedness) "--guardedness"
   , infectiveOption (collapseDefault . optFlatSplit) "--flat-split"
   , infectiveOption optCohesion "--cohesion"
+  , infectiveOption optPolarity "--polarity"
   , infectiveOption optErasure "--erasure"
   , infectiveOption (collapseDefault . optErasedMatches)
                     "--erased-matches"
@@ -628,6 +632,9 @@ flatSplitFlag o = return $ o
   { optFlatSplit = Value True
   , optCohesion  = True
   }
+
+polarityFlag :: Flag PragmaOptions
+polarityFlag o = return $ o { optPolarity = True }
 
 doubleCheckFlag :: Bool -> Flag PragmaOptions
 doubleCheckFlag b o = return $ o { optDoubleCheck = b }
@@ -1146,6 +1153,8 @@ pragmaOptions =
                     "enable the cohesion modalities (in particular @flat)"
     , Option []     ["flat-split"] (NoArg flatSplitFlag)
                     "allow split on (@flat x : A) arguments (implies --cohesion)"
+    , Option []     ["polarity"] (NoArg polarityFlag)
+                    "enable the polarity modalities (@++, @mixed, etc.) and their integration in the positivity checker"
     , Option []     ["guardedness"] (NoArg guardedness)
                     "enable constructor-based guarded corecursion (inconsistent with --sized-types)"
     , Option []     ["no-guardedness"] (NoArg noGuardedness)

@@ -1775,7 +1775,9 @@ fitsIn uc forceds t s = do
       Just (isPath, dom, b) -> do
         -- Lucas, 23-11-2022: we re-check the type of the constructor argument
         -- with the right polarity annotations in context.
-        checkInternal (unEl (unDom dom)) CmpLeq (sort (getSort dom))
+        polarity <- optPolarity <$> pragmaOptions
+        when polarity $
+          checkInternal (unEl (unDom dom)) CmpLeq (sort (getSort dom))
         let (forced,forceds') = nextIsForced forceds
         unless (isForced forced && not withoutK) $ do
           sa <- reduce $ getSort dom
