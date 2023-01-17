@@ -154,14 +154,18 @@ getFullyAppliedConType c t = do
       reportSLn "tc.getConType" 35 $ unwords $
         [ "getFullyAppliedConType: case Def", prettyShow d, prettyShow es ]
       def <- getConstInfo d
+      -- Lucas, 23-11-2022:
+      -- we can just get n <- getNumberOfParameters d and remove the case
+      -- i.e do the same thing as checkConstructorApplication in Rules.Application
+      -- or refactor both out
       let cont n = do
             -- At this point we can be sure that the parameters are well-scoped.
             let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take n es
             Just . ((d, defType def, pars),) <$> do
               (`piApplyM` pars) . defType =<< getConInfo c
       case theDef def of
-        Datatype { dataPars = n, dataCons   = cs  } | conName c `elem` cs -> cont n
-        Record   { recPars  = n, recConHead = con } | c == con            -> cont n
+        Datatype { dataPars = n, dataCons   = cs  } -> cont n
+        Record   { recPars  = n, recConHead = con } | c == con -> cont n
         _ ->  return Nothing
     _ -> return Nothing
 
