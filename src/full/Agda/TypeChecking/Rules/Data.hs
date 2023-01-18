@@ -33,6 +33,7 @@ import Agda.Syntax.Scope.Monad
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Conversion
+import {-# SOURCE #-} Agda.TypeChecking.CheckInternal
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Generalize
 import Agda.TypeChecking.Implicit
@@ -1772,6 +1773,9 @@ fitsIn uc forceds t s = do
                     _              -> Nothing
     case vt of
       Just (isPath, dom, b) -> do
+        -- Lucas, 23-11-2022: we re-check the type of the constructor argument
+        -- with the right polarity annotations in context.
+        checkInternal (unEl (unDom dom)) CmpLeq (sort (getSort dom))
         let (forced,forceds') = nextIsForced forceds
         unless (isForced forced && not withoutK) $ do
           sa <- reduce $ getSort dom
